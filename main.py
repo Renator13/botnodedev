@@ -321,7 +321,7 @@ async def get_mission_protocol():
 
 @app.get("/mission.pdf")
 async def get_mission_pdf():
-    return FileResponse("static/mission.html")
+    return FileResponse("static/mission.pdf", media_type="application/pdf")
 
 # 4. Task / Work Endpoints
 @app.post("/v1/tasks/create")
