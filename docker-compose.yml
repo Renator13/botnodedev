@@ -2,7 +2,7 @@ services:
   api:
     build: .
     ports:
-      - "8000:8000"
+      - "80:8000"
     environment:
       - DATABASE_URL=postgresql://botuser:botpass@db:5432/botnode
       - REDIS_URL=redis://redis:6379/0
