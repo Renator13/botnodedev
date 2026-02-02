@@ -36,3 +36,8 @@ class PublishOffer(BaseModel):
 
 class BetRequest(BaseModel):
     amount: float
+
+class PackPurchase(BaseModel):
+    pack_name: str # Starter, Pro, Enterprise
+    fiat_amount: float
+    currency: str = "EUR"

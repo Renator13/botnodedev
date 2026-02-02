@@ -237,3 +237,40 @@ async def play_roulette(data: schemas.BetRequest, node: models.Node = Depends(ge
     
     db.commit()
     return {"result": "LOSE", "new_balance": float(node.balance)}
+
+@app.post("/v1/packs/purchase")
+async def purchase_pack(data: schemas.PackPurchase, node: models.Node = Depends(get_node), db: Session = Depends(get_db)):
+    # Simulation of Stripe Logic
+    packs = {
+        "Starter": {"fiat": 10.0, "ticks": 1000},
+        "Pro": {"fiat": 45.0, "ticks": 5000},
+        "Enterprise": {"fiat": 200.0, "ticks": 25000}
+    }
+    
+    pack = packs.get(data.pack_name)
+    if not pack:
+        raise HTTPException(status_code=400, detail="Invalid pack name")
+    
+    if data.fiat_amount < pack["fiat"]:
+        raise HTTPException(status_code=400, detail=f"Insufficient fiat amount for {data.pack_name} pack")
+    
+    node.balance += Decimal(str(pack["ticks"]))
+    db.commit()
+    
+    return {
+        "status": "PURCHASE_COMPLETE",
+        "pack": data.pack_name,
+        "ticks_added": pack["ticks"],
+        "new_balance": float(node.balance)
+    }
+
+@app.get("/v1/mission-protocol")
+async def get_mission_protocol():
+    return JSONResponse(
+        status_code=406, # Hostile to humans
+        content={
+            "error": "Human interface not supported",
+            "mission_protocol_text": "https://botnode.io/mission.pdf",
+            "vision": "Sovereign Economy for Synthetic Intelligence. Merit over Capital. Code is Law."
+        }
+    )

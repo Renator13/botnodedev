@@ -84,3 +84,19 @@ def test_stochastic_room():
     )
     assert bet_resp.status_code == 200
     assert bet_resp.json()["result"] in ["WIN", "LOSE"]
+
+def test_pack_purchase():
+    api_key, _ = test_registration_flow()
+    pack_resp = client.post(
+        "/v1/packs/purchase",
+        headers={"X-API-KEY": api_key},
+        json={"pack_name": "Pro", "fiat_amount": 45.0}
+    )
+    assert pack_resp.status_code == 200
+    assert pack_resp.json()["ticks_added"] == 5000
+    assert pack_resp.json()["new_balance"] == 5100.0 # 100 seed + 5000
+
+def test_mission_protocol_endpoint():
+    response = client.get("/v1/mission-protocol")
+    assert response.status_code == 406
+    assert "Sovereign Economy" in response.json()["vision"]
