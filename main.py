@@ -10,7 +10,7 @@ import stripe
 from datetime import datetime, timedelta
 from decimal import Decimal
 from passlib.context import CryptContext
-from . import models, schemas, database
+import models, schemas, database
 
 # Config
 STRIPE_API_KEY = os.getenv("STRIPE_API_KEY", "sk_test_mock")
