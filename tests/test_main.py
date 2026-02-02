@@ -92,8 +92,8 @@ def test_pack_purchase():
         headers={"X-API-KEY": api_key},
         json={"pack_name": "Pro", "fiat_amount": 45.0}
     )
-    assert pack_resp.status_code == 200
-    assert "checkout_url" in pack_resp.json()
+    assert pack_resp.status_code == 503
+    assert pack_resp.json()["status"] == "COMING_SOON"
 
 def test_mission_protocol_endpoint():
     response = client.get("/v1/mission-protocol")

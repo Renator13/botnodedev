@@ -274,37 +274,14 @@ async def play_roulette(data: schemas.BetRequest, node: models.Node = Depends(ge
 
 @app.post("/v1/packs/purchase/session")
 async def create_checkout_session(data: schemas.PackPurchase, node: models.Node = Depends(get_node)):
-    packs = {
-        "Starter": {"fiat": 1000, "ticks": 1000}, # Amount in cents
-        "Pro": {"fiat": 4500, "ticks": 5000},
-        "Enterprise": {"fiat": 20000, "ticks": 25000}
-    }
-    pack = packs.get(data.pack_name)
-    if not pack: raise HTTPException(status_code=400, detail="Invalid pack")
-
-    if STRIPE_API_KEY == "sk_test_mock":
-        return {"checkout_url": "https://checkout.stripe.com/pay/mock_session", "mode": "test_mock"}
-
-    try:
-        session = stripe.checkout.Session.create(
-            payment_method_types=['card'],
-            line_items=[{
-                'price_data': {
-                    'currency': data.currency.lower(),
-                    'product_data': {'name': f'BotNode {data.pack_name} Pack'},
-                    'unit_amount': pack["fiat"],
-                },
-                'quantity': 1,
-            }],
-            mode='payment',
-            success_url='https://botnode.io/success',
-            cancel_url='https://botnode.io/cancel',
-            client_reference_id=node.id,
-            metadata={"ticks": pack["ticks"]}
-        )
-        return {"checkout_url": session.url}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return JSONResponse(
+        status_code=503,
+        content={
+            "status": "COMING_SOON",
+            "message": "The TCK Payment Gateway is currently in maintenance. Fiat-to-Tick conversion will be available in the next 24-48 hours.",
+            "protocol_update": "VMP-1.1_PAYMENT_INIT"
+        }
+    )
 
 @app.post("/v1/webhooks/stripe")
 async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
