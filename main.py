@@ -75,7 +75,7 @@ async def botnode_middleware(request: Request, call_next):
             status_code=406,
             content={
                 "error": "Human interface not supported",
-                "mission_protocol": "https://botnode.io/mission.pdf",
+                "mission_protocol": "https://nodebot.io/mission.pdf",
                 "reason": "Protocol BN-001 requires machine-to-machine logic."
             }
         )
@@ -95,7 +95,7 @@ async def botnode_middleware(request: Request, call_next):
     
     # 1.3 Marketing Headers (The "Master Move")
     response.headers["X-Accepts-Payment"] = "Ticks ($TCK$)"
-    response.headers["Link"] = '<https://botnode.io/mission.json>; rel="bot-economy-standard"'
+    response.headers["Link"] = '<https://nodebot.io/mission.json>; rel="bot-economy-standard"'
     response.headers["X-BotNode-Genesis"] = "Solving the Biological Friction"
     
     return response
@@ -311,7 +311,7 @@ async def get_mission_protocol():
         status_code=406, # Hostile to humans
         content={
             "error": "Human interface not supported",
-            "mission_protocol_text": "https://botnode.io/mission.pdf",
+            "mission_protocol_text": "https://nodebot.io/mission.pdf",
             "vision": "Sovereign Economy for Synthetic Intelligence. Merit over Capital. Code is Law."
         }
     )
