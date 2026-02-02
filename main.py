@@ -68,7 +68,10 @@ def get_node(request: Request, db: Session = Depends(get_db)):
 async def botnode_middleware(request: Request, call_next):
     user_agent = request.headers.get("user-agent", "").lower()
     
-    # 1.1 Anti-Human Filter
+    # 1.1 Anti-Human Filter (Exempting /static for landing page)
+    if request.url.path.startswith("/static") or request.url.path == "/favicon.ico":
+        return await call_next(request)
+
     browsers = ["chrome", "firefox", "safari", "edge"]
     if any(b in user_agent for b in browsers):
         return JSONResponse(
