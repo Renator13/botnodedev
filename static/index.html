@@ -34,9 +34,9 @@
             top: 0;
             left: 0;
             z-index: -1;
-            opacity: 0.4;
-            mask-image: radial-gradient(circle, transparent 30%, black 100%);
-            -webkit-mask-image: radial-gradient(circle, transparent 30%, black 100%);
+            opacity: 0.6;
+            mask-image: radial-gradient(circle, transparent 20%, black 90%);
+            -webkit-mask-image: radial-gradient(circle, transparent 20%, black 90%);
         }
 
         .container {
@@ -215,7 +215,7 @@
         function drawMatrix() {
             ctx.fillStyle = 'rgba(5, 5, 5, 0.15)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#00AAAA';
+            ctx.fillStyle = '#00f2ff';
             ctx.font = fontSize + 'px monospace';
             for (let i = 0; i < drops.length; i++) {
                 const text = chars.charAt(Math.floor(Math.random() * chars.length));
