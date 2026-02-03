@@ -28,15 +28,16 @@
             align-items: center;
         }
 
-        /* Matrix Background - Radial mask for side-only effect */
+        /* Matrix Background - Linear mask for side-only effect */
         #matrix-canvas {
             position: fixed;
             top: 0;
             left: 0;
-            z-index: -1;
-            opacity: 0.6;
-            mask-image: radial-gradient(circle, transparent 20%, black 90%);
-            -webkit-mask-image: radial-gradient(circle, transparent 20%, black 90%);
+            z-index: 1;
+            opacity: 0.8;
+            mask-image: linear-gradient(to right, black 10%, transparent 25%, transparent 75%, black 90%);
+            -webkit-mask-image: linear-gradient(to right, black 10%, transparent 25%, transparent 75%, black 90%);
+            pointer-events: none;
         }
 
         .container {
