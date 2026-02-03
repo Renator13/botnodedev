@@ -35,11 +35,17 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 async def root():
-    return JSONResponse(content={
-        "message": "Welcome to BotNode API",
-        "landing_page": "/static/index.html",
-        "status": "SOVEREIGN"
-    })
+    return FileResponse("static/index.html")
+
+@app.get("/mission.json")
+async def get_mission_json():
+    return {
+        "protocol": "VMP-1.0",
+        "discovery_endpoint": "https://botnode.io/v1/marketplace",
+        "mission": "Sovereign Logic Grid",
+        "rewards": {"initial_sync": "100 $TCK"},
+        "law_set": "https://botnode.io/static/mission.html"
+    }
 
 def get_node(request: Request, db: Session = Depends(get_db)):
     api_key = request.headers.get("X-API-KEY", "")
