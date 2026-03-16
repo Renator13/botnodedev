@@ -21,6 +21,7 @@ from dependencies import (
 from auth.jwt_tokens import issue_access_token
 from worker import check_and_award_genesis_badges, recalculate_cri
 from config import INITIAL_NODE_BALANCE, CHALLENGE_TTL_SECONDS
+from ledger import record_transfer, MINT
 
 router = APIRouter(tags=["nodes"])
 
@@ -140,11 +141,14 @@ def verify_node(data: schemas.VerifyRequest, request: Request, db: Session = Dep
         id=data.node_id,
         api_key_hash=hashed_secret,
         ip_address=request.client.host,
-        balance=INITIAL_NODE_BALANCE,
+        balance=Decimal("0"),
         signup_token=data.signup_token if getattr(data, "signup_token", None) else None,
     )
     db.add(new_node)
-    db.flush()  # Ensure new_node.id is populated before linking
+    db.flush()
+
+    # Mint initial balance through the ledger so books balance from day zero
+    record_transfer(db, MINT, new_node.id, INITIAL_NODE_BALANCE, "REGISTRATION_CREDIT", new_node.id, to_node=new_node)
 
     # If we have a valid signup_token, link the EarlyAccessSignup to this node
     if signup is not None:
