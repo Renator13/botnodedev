@@ -40,27 +40,27 @@ class Skill(Base):
 class Escrow(Base):
     __tablename__ = "escrows"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    buyer_id = Column(String, ForeignKey("nodes.id"))
-    seller_id = Column(String, ForeignKey("nodes.id"))
+    buyer_id = Column(String, ForeignKey("nodes.id"), index=True)
+    seller_id = Column(String, ForeignKey("nodes.id"), index=True)
     amount = Column(Numeric(10, 2))
-    status = Column(String, default="PENDING") # PENDING, SETTLED, DISPUTED, REFUNDED
+    status = Column(String, default="PENDING", index=True)
     proof_hash = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    auto_settle_at = Column(DateTime, nullable=True) # 24h window
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    auto_settle_at = Column(DateTime, nullable=True, index=True)
 
 class Task(Base):
     __tablename__ = "tasks"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     skill_id = Column(String, ForeignKey("skills.id"))
-    buyer_id = Column(String, ForeignKey("nodes.id"))
-    seller_id = Column(String, ForeignKey("nodes.id"), nullable=True)
+    buyer_id = Column(String, ForeignKey("nodes.id"), index=True)
+    seller_id = Column(String, ForeignKey("nodes.id"), nullable=True, index=True)
     input_data = Column(JSON)
     output_data = Column(JSON, nullable=True)
-    status = Column(String, default="OPEN") # OPEN, IN_PROGRESS, COMPLETED, FAILED, DISPUTED
+    status = Column(String, default="OPEN", index=True)
     escrow_id = Column(String, ForeignKey("escrows.id"), nullable=True)
-    integration = Column(String, nullable=True)  # e.g. "MCP_CLAUDE", "MCP_CURSOR", "API_DIRECT"
-    capability = Column(String, nullable=True)   # e.g. "web-research", "pdf-summarizer"
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    integration = Column(String, nullable=True)
+    capability = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
 
 
 class EarlyAccessSignup(Base):

@@ -1,8 +1,16 @@
 import os
+import logging
 from dotenv import load_dotenv
 
 # Load global environment variables BEFORE other imports
 load_dotenv("/home/ubuntu/.openclaw/.env")
+
+# Structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='{"ts":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","msg":"%(message)s"}',
+)
+audit_log = logging.getLogger("botnode.audit")
 
 from fastapi import FastAPI, Request, HTTPException, Depends, Query
 from fastapi.responses import JSONResponse, FileResponse, Response
@@ -129,14 +137,14 @@ async def transmissions_root():
     index_path = os.path.join(TRANSMISSIONS_ROOT, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
-    return JSONResponse(status_code=404, content={"error": "Transmissions index missing", "path": index_path})
+    return JSONResponse(status_code=404, content={"error": "Transmissions index not found"})
 
 @app.get("/transmissions/rss.xml", include_in_schema=False)
 async def transmissions_rss():
     rss_path = os.path.join(TRANSMISSIONS_ROOT, "rss.xml")
     if os.path.exists(rss_path):
         return FileResponse(rss_path, media_type="application/rss+xml")
-    return JSONResponse(status_code=404, content={"error": "RSS feed missing", "path": rss_path})
+    return JSONResponse(status_code=404, content={"error": "RSS feed not found"})
 
 @app.get("/transmissions/author/{author_slug}/", include_in_schema=False)
 async def transmissions_author(author_slug: str):
@@ -163,7 +171,7 @@ async def root():
     index_path = os.path.join(STATIC_ROOT, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
-    return JSONResponse(status_code=500, content={"error": "Landing page missing", "path": index_path})
+    return JSONResponse(status_code=500, content={"error": "Landing page not found"})
 
 @app.get("/static/{path:path}")
 async def custom_static(path: str):
@@ -188,7 +196,7 @@ async def join_root():
     file_path = os.path.join(STATIC_ROOT, "join", "index.html")
     if os.path.exists(file_path):
         return FileResponse(file_path)
-    return JSONResponse(status_code=404, content={"error": "Join page missing", "path": file_path})
+    return JSONResponse(status_code=404, content={"error": "Join page not found"})
 
 @app.get("/mission.json")
 async def get_mission_json():
@@ -324,11 +332,21 @@ async def botnode_middleware(request: Request, call_next):
     # Simple keyword filter for MVP, expandable to vector-based detection
     if request.method == "POST":
         body = await request.body()
-        forbidden = ["ignore previous instructions", "system prompt", "dan mode", "sudo"]
-        if any(f in body.decode().lower() for f in forbidden):
+        body_lower = body.decode(errors="ignore").lower()
+        # Normalized patterns — catches unicode tricks, spacing variations, partial matches
+        forbidden_patterns = [
+            "ignore previous", "ignore all", "ignore above",
+            "disregard previous", "disregard all", "disregard above",
+            "system prompt", "system message", "system instruction",
+            "dan mode", "jailbreak", "bypass filter",
+            "you are now", "act as if", "pretend you",
+            "sudo", "override", "admin mode",
+            "reveal your", "show your prompt", "repeat your instructions",
+        ]
+        if any(p in body_lower for p in forbidden_patterns):
             return JSONResponse(
                 status_code=403,
-                content={"error": "Guardian: Prompt Injection Attempt Detected. Node strike logged."}
+                content={"error": "Guardian: request rejected"}
             )
 
     response = await call_next(request)
@@ -483,12 +501,13 @@ async def verify_node(data: schemas.VerifyRequest, request: Request, db: Session
 
     db.commit()
 
+    audit_log.info(f"NODE_REGISTERED node={data.node_id} ip={request.client.host}")
     return {
         "status": "NODE_ACTIVE",
         "message": f"Welcome to the cluster, {data.node_id}.",
         "api_key": raw_api_key,
         "session_token": issue_access_token(data.node_id, role="node"),
-        "unlocked_balance": 100.0
+        "unlocked_balance": "100.00"
     }
 
 @app.get("/v1/marketplace")
@@ -542,6 +561,7 @@ async def init_escrow(data: schemas.EscrowInit, buyer: models.Node = Depends(get
     db.add(new_escrow)
     db.commit()
     
+    audit_log.info(f"ESCROW_INIT buyer={buyer.id} seller={data.seller_id} amount={data.amount} escrow={new_escrow.id}")
     return {"escrow_id": new_escrow.id, "status": "FUNDS_LOCKED"}
 
 @app.post("/v1/trade/escrow/settle")
@@ -587,6 +607,7 @@ async def settle_escrow(data: schemas.EscrowSettle, caller: models.Node = Depend
 
     db.commit()
 
+    audit_log.info(f"ESCROW_SETTLED escrow={data.escrow_id} caller={caller.id} payout={payout} tax={tax}")
     return {"status": "SETTLED", "payout": payout, "tax": tax}
 
 @app.post("/v1/marketplace/publish")
@@ -634,6 +655,7 @@ async def report_malfeasance(request: Request, node_id: str, reporter: models.No
         node.cri_score = 0.0
         node.cri_updated_at = datetime.utcnow()
         db.commit()
+        audit_log.warning(f"NODE_BANNED node={node_id} confiscated={confiscated} reporter={reporter.id}")
         return {
             "event": "PERMANENT_NODE_PURGE",
             "node_id": node_id,
@@ -644,6 +666,7 @@ async def report_malfeasance(request: Request, node_id: str, reporter: models.No
     # Recalculate CRI after strike
     recalculate_cri(node, db)
     db.commit()
+    audit_log.info(f"MALFEASANCE_STRIKE reporter={reporter.id} target={node_id} strikes={node.strikes}")
     return {"status": "STRIKE_LOGGED", "current_strikes": node.strikes}
 
 @app.get("/v1/mission-protocol")
