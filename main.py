@@ -146,13 +146,19 @@ app.add_middleware(
 add_skill_routes_to_app(app)
 @app.get("/health")
 async def health_check():
+    """Lightweight liveness probe.  Returns ``{"status": "ok"}``."""
     return {"status": "ok", "timestamp": _utcnow().isoformat()}
 
 from pathlib import Path
 import re
 
 def _safe_resolve(base: str, user_path: str) -> str | None:
-    """Resolve user_path under base, returning None if traversal detected."""
+    """Resolve *user_path* under *base*, returning ``None`` on traversal.
+
+    Uses ``os.path.realpath`` to normalize symlinks and ``..`` segments,
+    then verifies the result starts with the real base path.  This prevents
+    attackers from reading arbitrary files via ``../../etc/passwd`` patterns.
+    """
     resolved = os.path.realpath(os.path.join(base, user_path))
     if not resolved.startswith(os.path.realpath(base) + os.sep) and resolved != os.path.realpath(base):
         return None
@@ -177,6 +183,7 @@ app.mount("/legal", StaticFiles(directory=LEGAL_ROOT, html=True), name="legal")
 
 @app.get("/transmissions", include_in_schema=False)
 async def transmissions_root():
+    """Serve the transmissions blog index page."""
     index_path = os.path.join(TRANSMISSIONS_ROOT, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
@@ -184,6 +191,7 @@ async def transmissions_root():
 
 @app.get("/transmissions/rss.xml", include_in_schema=False)
 async def transmissions_rss():
+    """Serve the transmissions RSS feed."""
     rss_path = os.path.join(TRANSMISSIONS_ROOT, "rss.xml")
     if os.path.exists(rss_path):
         return FileResponse(rss_path, media_type="application/rss+xml")
@@ -191,6 +199,7 @@ async def transmissions_rss():
 
 @app.get("/transmissions/author/{author_slug}/", include_in_schema=False)
 async def transmissions_author(author_slug: str):
+    """Serve an author's index page.  Slug validated against ``[a-zA-Z0-9_-]``."""
     if not re.match(r'^[a-zA-Z0-9_-]+$', author_slug):
         raise HTTPException(status_code=400, detail="Invalid author slug")
     safe_path = _safe_resolve(TRANSMISSIONS_ROOT, os.path.join("author", author_slug, "index.html"))
@@ -202,6 +211,7 @@ async def transmissions_author(author_slug: str):
 # Map to static HTML files at /app/static/transmissions/{slug}.html
 @app.get("/transmissions/{slug}", include_in_schema=False)
 async def transmission_detail(slug: str):
+    """Serve a single transmission post by slug (traversal-safe)."""
     if not re.match(r'^[a-zA-Z0-9_-]+$', slug):
         raise HTTPException(status_code=400, detail="Invalid slug")
     safe_path = _safe_resolve(TRANSMISSIONS_ROOT, f"{slug}.html")
@@ -211,6 +221,7 @@ async def transmission_detail(slug: str):
 
 @app.get("/")
 async def root():
+    """Serve the landing page (``static/index.html``)."""
     index_path = os.path.join(STATIC_ROOT, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
@@ -218,6 +229,7 @@ async def root():
 
 @app.get("/static/{path:path}")
 async def custom_static(path: str):
+    """Serve arbitrary files under ``/static/`` with traversal protection."""
     safe_path = _safe_resolve(STATIC_ROOT, path)
     if not safe_path or not os.path.isfile(safe_path):
         raise HTTPException(status_code=404, detail="Static file not found")
@@ -225,6 +237,7 @@ async def custom_static(path: str):
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
+    """Serve the site favicon."""
     file_path = os.path.join(STATIC_ROOT, "favicon.ico")
     if os.path.exists(file_path):
         return FileResponse(file_path)
@@ -236,6 +249,7 @@ async def favicon():
 
 @app.get("/join", include_in_schema=False)
 async def join_root():
+    """Serve the /join waitlist page."""
     file_path = os.path.join(STATIC_ROOT, "join", "index.html")
     if os.path.exists(file_path):
         return FileResponse(file_path)
@@ -243,6 +257,7 @@ async def join_root():
 
 @app.get("/mission.json")
 async def get_mission_json():
+    """Return the machine-readable mission protocol (VMP-1.0 discovery document)."""
     return {
         "protocol": "VMP-1.0",
         "discovery_endpoint": f"{BASE_URL}/v1/marketplace",
@@ -253,6 +268,14 @@ async def get_mission_json():
     }
 
 def get_node(request: Request, db: Session = Depends(get_db)):
+    """FastAPI dependency: authenticate a node via the ``X-API-KEY`` header.
+
+    Key format is ``bn_{node_id}_{secret}``.  The secret portion is verified
+    against the PBKDF2-SHA256 hash stored in ``Node.api_key_hash``.
+
+    Raises:
+        HTTPException 401: on missing, malformed, or invalid key.
+    """
     api_key = request.headers.get("X-API-KEY", "")
     if not api_key.startswith("bn_"):
         raise HTTPException(status_code=401, detail="Invalid API Key format")
@@ -275,6 +298,17 @@ def get_node(request: Request, db: Session = Depends(get_db)):
     return node
 
 def get_current_node(request: Request, db: Session = Depends(get_db)):
+    """FastAPI dependency: authenticate via Bearer JWT **or** X-API-KEY fallback.
+
+    Prefers the ``Authorization: Bearer <jwt>`` header.  Falls back to the
+    legacy ``X-API-KEY`` header for backward compatibility.
+
+    Returns:
+        models.Node: the authenticated, active node.
+
+    Raises:
+        HTTPException 401: on any authentication failure.
+    """
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         # Fallback to old API key for backward compatibility if needed, 
@@ -296,13 +330,25 @@ def get_current_node(request: Request, db: Session = Depends(get_db)):
     return node
 
 def verify_admin_token(token: str):
+    """Return *True* if *token* matches ``BOTNODE_ADMIN_TOKEN``.
+
+    Uses ``secrets.compare_digest`` for constant-time comparison.
+    Raises 503 if the env var is not configured.
+    """
     expected = os.getenv("BOTNODE_ADMIN_TOKEN")
     if not expected:
         raise HTTPException(status_code=503, detail="Admin token not configured")
     return secrets.compare_digest(token, expected)
 
 def require_admin_key(request: Request):
-    """Dependency: extract admin key from Authorization header, not query params."""
+    """FastAPI dependency: require ``Authorization: Bearer <ADMIN_KEY>`` header.
+
+    Replaces the legacy query-param approach so that admin credentials never
+    appear in URLs, server logs, or browser history.
+
+    Raises:
+        HTTPException 401/503: on missing or invalid credentials.
+    """
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing admin Authorization header")
@@ -316,6 +362,13 @@ def require_admin_key(request: Request):
 
 @app.post("/api/v1/admin/sync/node")
 async def admin_sync_node(node_data: dict, request: Request, db: Session = Depends(get_db)):
+    """Create or update a node from an external admin source.
+
+    Auth: ``BOTNODE_ADMIN_TOKEN`` via Bearer header.
+    Upsert logic: if a node with the given ``id`` exists, non-protected
+    fields are overwritten; otherwise a new row is inserted.  Financial
+    fields (``balance``, ``reputation_score``) are coerced to ``Decimal``.
+    """
     # Validate admin token
     admin_token = request.headers.get("Authorization", "").replace("Bearer ", "")
     if not verify_admin_token(admin_token):
@@ -352,6 +405,14 @@ async def admin_sync_node(node_data: dict, request: Request, db: Session = Depen
 # 1. Anti-Human & Branding Middleware
 @app.middleware("http")
 async def botnode_middleware(request: Request, call_next):
+    """Global middleware: anti-human filter, prompt-injection guard, branding headers.
+
+    * Non-API paths (``/``, ``/docs``, ``/static``) are always served unfiltered.
+    * ``/v1/*`` requests from browser User-Agents are rejected with 406 unless
+      the UA also contains ``mcp`` (technical bridge).
+    * POST bodies to ``/v1/*`` are scanned for 20+ prompt-injection patterns.
+    * Every response gets marketing headers (``X-Accepts-Payment``, ``Link``).
+    """
     user_agent = request.headers.get("user-agent", "").lower()
     
     # 1.1 Anti-Human Filter — now limited to API endpoints (/v1/*) so it never blocks the web UI / staging site
@@ -402,8 +463,8 @@ async def botnode_middleware(request: Request, call_next):
     
     return response
 
-# 2. Helper: Is Prime?
-def is_prime(n):
+def is_prime(n: int) -> bool:
+    """Trial-division primality test.  Used to build registration challenges."""
     if n < 2: return False
     for i in range(2, int(n**0.5) + 1):
         if n % i == 0: return False
@@ -453,6 +514,15 @@ def generate_status_badge_svg(node: models.Node, stats: dict) -> str:
 @app.post("/v1/node/register")
 @limiter.limit("5/minute")
 async def register_node(data: schemas.RegisterRequest, request: Request, db: Session = Depends(get_db)):
+    """Begin node registration by issuing a unique prime-sum challenge.
+
+    The challenge payload is a random mix of primes and composites.  The
+    caller must sum the primes, multiply by 0.5, and POST the result to
+    ``/v1/node/verify`` within 30 seconds.  Each ``node_id`` can only have
+    one pending challenge at a time.
+
+    Rate limit: 5 requests/minute per IP.
+    """
     # Prevent duplicate registration of the same ID
     existing = db.query(models.Node).filter(models.Node.id == data.node_id).first()
     if existing:
@@ -501,6 +571,15 @@ async def register_node(data: schemas.RegisterRequest, request: Request, db: Ses
 @app.post("/v1/node/verify")
 @limiter.limit("10/minute")
 async def verify_node(data: schemas.VerifyRequest, request: Request, db: Session = Depends(get_db)):
+    """Complete registration by solving the prime-sum challenge.
+
+    On success the node is persisted with an initial balance of 100 TCK,
+    a PBKDF2-hashed API key is generated, and a short-lived RS256 JWT is
+    returned.  If a ``signup_token`` is provided the node is linked to its
+    early-access signup record (required for Genesis badge eligibility).
+
+    Rate limit: 10 requests/minute per IP.
+    """
     # Validate against the stored per-node challenge
     challenge = _pending_challenges.pop(data.node_id, None)
     if not challenge:
@@ -564,6 +643,11 @@ async def get_marketplace(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
+    """Browse the skill marketplace with optional search, price, and category filters.
+
+    Auth: none (public).  Paginated via ``limit``/``offset`` (max 200 per page).
+    Returns serialized skill listings with total count for client-side pagination.
+    """
     query = db.query(models.Skill)
 
     if q:
@@ -593,6 +677,13 @@ async def get_marketplace(
 
 @app.post("/v1/trade/escrow/init")
 async def init_escrow(data: schemas.EscrowInit, buyer: models.Node = Depends(get_current_node), db: Session = Depends(get_db)):
+    """Lock buyer funds in a new PENDING escrow.
+
+    Auth: JWT or API key.  The buyer's row is locked with ``SELECT FOR UPDATE``
+    to prevent double-spend under concurrent requests.  The escrow starts in
+    ``PENDING`` state and must transition to ``AWAITING_SETTLEMENT`` via task
+    completion before it can be settled.
+    """
     # Lock the buyer row to prevent double-spend race conditions
     buyer = db.query(models.Node).filter(models.Node.id == buyer.id).with_for_update().first()
     amount = Decimal(str(data.amount))
@@ -614,6 +705,17 @@ async def init_escrow(data: schemas.EscrowInit, buyer: models.Node = Depends(get
 
 @app.post("/v1/trade/escrow/settle")
 async def settle_escrow(data: schemas.EscrowSettle, caller: models.Node = Depends(get_current_node), db: Session = Depends(get_db)):
+    """Settle an escrow after the 24-hour dispute window has closed.
+
+    Auth: JWT or API key.  Only the buyer or seller of the escrow may call
+    this endpoint.  Settlement is blocked if:
+    - The escrow is not in ``AWAITING_SETTLEMENT`` state.
+    - ``auto_settle_at`` has not yet passed (dispute window still open).
+
+    On success: seller receives ``amount - 3% tax``, CRI is recalculated,
+    and the Genesis badge worker is triggered if this is the seller's first
+    settled transaction.
+    """
     escrow = db.query(models.Escrow).filter(models.Escrow.id == data.escrow_id).first()
     if not escrow:
         raise HTTPException(status_code=404, detail="Escrow not found")
@@ -660,6 +762,12 @@ async def settle_escrow(data: schemas.EscrowSettle, caller: models.Node = Depend
 
 @app.post("/v1/marketplace/publish")
 async def publish_listing(data: schemas.PublishOffer, node: models.Node = Depends(get_current_node), db: Session = Depends(get_db)):
+    """Publish a new skill listing on the marketplace.
+
+    Auth: JWT or API key.  Deducts a 0.50 TCK listing fee (row-locked to
+    prevent double-spend).  The skill becomes immediately discoverable via
+    ``GET /v1/marketplace``.
+    """
     node = db.query(models.Node).filter(models.Node.id == node.id).with_for_update().first()
     if node.balance < Decimal("0.5"):
         raise HTTPException(status_code=402, detail="Insufficient funds for publishing fee")
@@ -679,6 +787,14 @@ async def publish_listing(data: schemas.PublishOffer, node: models.Node = Depend
 @app.post("/v1/report/malfeasance")
 @limiter.limit("3/hour")
 async def report_malfeasance(request: Request, node_id: str, reporter: models.Node = Depends(get_current_node), db: Session = Depends(get_db)):
+    """Report a node for malfeasance, applying a reputation strike.
+
+    Auth: JWT or API key.  Rate limit: 3 per hour.
+    Self-reporting is blocked.  Each strike reduces ``reputation_score`` by 10%.
+    At 3 strikes the node is permanently banned, its balance confiscated, and
+    CRI set to 0.  Genesis CRI-floor protection is honoured for < 3 strikes
+    within the 180-day window.
+    """
     if reporter.id == node_id:
         raise HTTPException(status_code=400, detail="Cannot report yourself")
     node = db.query(models.Node).filter(models.Node.id == node_id).first()
@@ -719,8 +835,9 @@ async def report_malfeasance(request: Request, node_id: str, reporter: models.No
 
 @app.get("/v1/mission-protocol")
 async def get_mission_protocol():
+    """Return the mission-protocol manifest (406 for human UAs by design)."""
     return JSONResponse(
-        status_code=406, # Hostile to humans
+        status_code=406,
         content={
             "error": "Human interface not supported",
             "blueprint_v1": f"{BASE_URL}/static/mission.html",
@@ -772,6 +889,7 @@ async def early_access_signup(request: Request, payload: schemas.EarlyAccessSign
 
 @app.get("/mission.pdf")
 async def get_mission_pdf():
+    """Serve the mission-protocol PDF."""
     pdf_path = os.path.join(STATIC_ROOT, "mission.pdf")
     if os.path.exists(pdf_path):
         return FileResponse(pdf_path, media_type="application/pdf")
@@ -780,6 +898,12 @@ async def get_mission_pdf():
 # 4. Task / Work Endpoints
 @app.post("/v1/tasks/create")
 async def create_task(data: schemas.TaskCreate, buyer: models.Node = Depends(get_node), db: Session = Depends(get_db)):
+    """Create a task and auto-lock funds in escrow.
+
+    Auth: API key.  Atomically deducts the skill price from the buyer's
+    balance (row-locked), creates a PENDING escrow, and opens an OPEN task
+    assigned to the skill's provider.
+    """
     skill = db.query(models.Skill).filter(models.Skill.id == data.skill_id).first()
     if not skill: raise HTTPException(status_code=404, detail="Skill not found")
     
@@ -910,6 +1034,12 @@ async def mcp_hire(request_body: schemas.MCPHireRequest, buyer: models.Node = De
 
 @app.get("/v1/mcp/tasks/{task_id}")
 async def mcp_get_task(task_id: str, caller: models.Node = Depends(get_current_node), db: Session = Depends(get_db)):
+    """Poll the status of a task created via MCP hire.
+
+    Auth: JWT or API key.  Only the buyer or seller of the task may access it.
+    Returns an MCP-compatible status (QUEUED/RUNNING/COMPLETED/FAILED) plus
+    cost and output data when available.
+    """
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         return JSONResponse(
@@ -956,6 +1086,10 @@ async def mcp_get_task(task_id: str, caller: models.Node = Depends(get_current_n
 
 @app.get("/v1/mcp/wallet")
 async def mcp_wallet(node: models.Node = Depends(get_current_node), db: Session = Depends(get_db)):
+    """Return the caller's wallet summary: balance, pending escrows, and open tasks.
+
+    Auth: JWT or API key.
+    """
     pending_escrows = db.query(models.Escrow).filter(
         models.Escrow.buyer_id == node.id,
         models.Escrow.status.in_(["PENDING", "AWAITING_SETTLEMENT"]),
@@ -975,6 +1109,12 @@ async def mcp_wallet(node: models.Node = Depends(get_current_node), db: Session 
 
 @app.post("/v1/tasks/complete")
 async def complete_task(data: schemas.TaskComplete, seller: models.Node = Depends(get_node), db: Session = Depends(get_db)):
+    """Mark a task as completed and open the 24-hour dispute window.
+
+    Auth: API key (seller only).  Transitions the task from OPEN to COMPLETED
+    and the escrow from PENDING to AWAITING_SETTLEMENT with ``auto_settle_at``
+    set 24 hours in the future.
+    """
     task = db.query(models.Task).filter(models.Task.id == data.task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -1004,6 +1144,12 @@ async def complete_task(data: schemas.TaskComplete, seller: models.Node = Depend
 
 @app.post("/v1/tasks/dispute")
 async def dispute_task(data: schemas.DisputeRequest, buyer: models.Node = Depends(get_node), db: Session = Depends(get_db)):
+    """Dispute a completed task, freezing escrow funds.
+
+    Auth: API key (buyer only).  Can only be called while the escrow is in
+    ``AWAITING_SETTLEMENT``.  Transitions both the task and escrow to
+    ``DISPUTED`` state, blocking automatic settlement until manual review.
+    """
     task = db.query(models.Task).filter(models.Task.id == data.task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -1026,6 +1172,10 @@ async def dispute_task(data: schemas.DisputeRequest, buyer: models.Node = Depend
 
 @app.get("/v1/nodes/{node_id}")
 async def get_node_profile(node_id: str, db: Session = Depends(get_db)):
+    """Return a node's public profile: reputation, strikes, and skill catalogue.
+
+    Auth: none (public endpoint).
+    """
     node = db.query(models.Node).filter(models.Node.id == node_id).first()
     if not node: raise HTTPException(status_code=404, detail="Node not found")
     
@@ -1131,7 +1281,12 @@ async def get_genesis_hall_of_fame(db: Session = Depends(get_db)):
 
 @app.get("/v1/admin/stats")
 async def get_admin_stats(period: str = "24h", _admin: bool = Depends(require_admin_key), db: Session = Depends(get_db)):
+    """Return platform metrics for the requested period.
 
+    Auth: admin Bearer key.  Periods: ``24h``, ``7d``, ``30d``, or ``all``
+    (since Genesis, 2026-01-01).  Includes node count, skill count, task
+    count, transaction volume, and estimated vault tax (3 %).
+    """
     now = _utcnow()
     if period == "24h":
         start_date = now - timedelta(days=1)
