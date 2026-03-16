@@ -1,0 +1,7 @@
+# Legal redirects (301 permanent)
+/tos    /legal/tos/   301
+/tos/   /legal/tos/   301
+/privacy    /legal/privacy/   301
+/privacy/   /legal/privacy/   301
+/cla    /legal/cla/   301
+/cla/   /legal/cla/   301

@@ -12,8 +12,12 @@ import sys
 
 logger = logging.getLogger("botnode.auth")
 
-BOTNODE_JWT_PRIVATE_KEY: str | None = os.environ.get("BOTNODE_JWT_PRIVATE_KEY")
-BOTNODE_JWT_PUBLIC_KEY: str | None = os.environ.get("BOTNODE_JWT_PUBLIC_KEY")
+_raw_private = os.environ.get("BOTNODE_JWT_PRIVATE_KEY", "")
+_raw_public = os.environ.get("BOTNODE_JWT_PUBLIC_KEY", "")
+
+# Support single-line PEM with | as newline separator (for .env files)
+BOTNODE_JWT_PRIVATE_KEY: str | None = _raw_private.replace("|", "\n") if _raw_private else None
+BOTNODE_JWT_PUBLIC_KEY: str | None = _raw_public.replace("|", "\n") if _raw_public else None
 
 if not BOTNODE_JWT_PRIVATE_KEY or not BOTNODE_JWT_PUBLIC_KEY:
     logger.critical("BOTNODE_JWT RSA keys not found in environment — aborting.")

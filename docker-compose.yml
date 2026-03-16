@@ -1,20 +1,43 @@
 services:
   api:
     build: .
-    expose:
-      - "8000"
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./static:/app/static:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; r=httpx.get('http://localhost:8000/health'); exit(0 if r.status_code==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  task-runner:
+    build: .
+    command: ["python", "task_runner.py"]
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgresql://botuser:botpass@db:5432/botnode
-      - REDIS_URL=redis://redis:6379/0
-    volumes:
-      # Serve the static site directly from the host static/ directory
-      - ../static:/app/static:ro
+      - API_BASE_URL=http://api:8000
     depends_on:
-      - db
-      - redis
+      api:
+        condition: service_healthy
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   db:
     image: postgres:16-alpine
@@ -26,27 +49,31 @@ services:
       - POSTGRES_DB=${POSTGRES_DB:-botnode}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-botnode}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     restart: always
-
-  caddy:
-    image: caddy:2-alpine
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
-      - ../web/botnode/botnode-site:/srv/botnode-site:ro
-    depends_on:
-      - api
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
-  caddy_data:
-  caddy_config:
