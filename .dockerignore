@@ -1,0 +1,45 @@
+# Tests and development files
+tests/
+_archive/
+backup_*/
+static_backup_*/
+*.md
+.env.example
+.gitignore
+.git/
+.claude/
+.coverage
+.pytest_cache/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+.venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Secrets (should never be in image — injected at runtime)
+*.pem
+*.key
+.env
+
+# Databases
+*.db
+*.sqlite*
+
+# Runtime artifacts
+skill_registry.json
+*.log
+
+# Proprietary skills (separate repo)
+skills_developed/
+
+# Legacy scripts
+*.sh
+bin/

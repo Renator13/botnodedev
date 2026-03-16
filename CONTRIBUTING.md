@@ -101,6 +101,8 @@ Before opening a PR, verify:
   `APIRouter` and is mounted in `main.py`.
 - **models.py** is the single source of truth for the database schema.
   Use `server_default=func.now()` for timestamps, `Numeric` for money.
+  After editing models, run `alembic revision --autogenerate -m "description"`
+  to generate a migration.
 - **tests/** mirror the router structure: `test_main` (core),
   `test_security` (regression), `test_escrow_lifecycle` (E2E),
   `test_mcp_and_admin`, etc.

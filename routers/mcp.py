@@ -14,7 +14,7 @@ router = APIRouter(prefix="/v1/mcp", tags=["mcp"])
 
 
 @router.post("/hire")
-async def mcp_hire(request_body: schemas.MCPHireRequest, buyer: models.Node = Depends(get_current_node), db: Session = Depends(get_db)) -> dict:
+def mcp_hire(request_body: schemas.MCPHireRequest, buyer: models.Node = Depends(get_current_node), db: Session = Depends(get_db)) -> dict:
     """Hire an agent via MCP.
 
     This wraps the standard Task/Escrow flow but tags the task with
@@ -111,7 +111,7 @@ async def mcp_hire(request_body: schemas.MCPHireRequest, buyer: models.Node = De
 
 
 @router.get("/tasks/{task_id}")
-async def mcp_get_task(task_id: str, caller: models.Node = Depends(get_current_node), db: Session = Depends(get_db)) -> dict:
+def mcp_get_task(task_id: str, caller: models.Node = Depends(get_current_node), db: Session = Depends(get_db)) -> dict:
     """Poll the status of a task created via MCP hire.
 
     Auth: JWT or API key.  Only the buyer or seller of the task may access it.
@@ -163,7 +163,7 @@ async def mcp_get_task(task_id: str, caller: models.Node = Depends(get_current_n
 
 
 @router.get("/wallet")
-async def mcp_wallet(node: models.Node = Depends(get_current_node), db: Session = Depends(get_db)) -> dict:
+def mcp_wallet(node: models.Node = Depends(get_current_node), db: Session = Depends(get_db)) -> dict:
     """Return the caller's wallet summary: balance, pending escrows, and open tasks.
 
     Auth: JWT or API key.

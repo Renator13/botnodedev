@@ -68,6 +68,7 @@ class Escrow(Base):
     proof_hash = Column(String, nullable=True)
     created_at = Column(DateTime, server_default=func.now(), index=True)
     auto_settle_at = Column(DateTime, nullable=True, index=True)
+    auto_refund_at = Column(DateTime, nullable=True, index=True)
 
 class Task(Base):
     __tablename__ = "tasks"
@@ -122,6 +123,16 @@ class GenesisBadgeAward(Base):
     awarded_at = Column(DateTime, server_default=func.now(), index=True)
     first_tx_id = Column(String(100), nullable=True)
     badge_url = Column(String(255), nullable=True)
+
+
+class PendingChallenge(Base):
+    """Temporary challenge store for node registration verification."""
+    __tablename__ = "pending_challenges"
+    node_id = Column(String, primary_key=True)
+    payload = Column(JSON, nullable=False)
+    expected_solution = Column(Float, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
 
 
 class Job(Base):

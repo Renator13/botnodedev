@@ -62,8 +62,10 @@ MCP_CAPABILITIES = {
 # ---------------------------------------------------------------------------
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
-# Challenge nonce store: {node_id: {"payload": [...], "expected": float, "expires": float}}
-_pending_challenges: dict = {}
+# Challenge nonce store — DEPRECATED: challenges are now stored in the DB
+# (models.PendingChallenge).  This symbol is kept as an empty dict so that
+# any import of ``_pending_challenges`` in third-party or legacy code does
+# not raise an ImportError.
 
 # ---------------------------------------------------------------------------
 # Database dependency

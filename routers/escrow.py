@@ -17,7 +17,7 @@ router = APIRouter(tags=["escrow"])
 
 
 @router.post("/v1/trade/escrow/init")
-async def init_escrow(data: schemas.EscrowInit, buyer: models.Node = Depends(get_current_node), db: Session = Depends(get_db)) -> dict:
+def init_escrow(data: schemas.EscrowInit, buyer: models.Node = Depends(get_current_node), db: Session = Depends(get_db)) -> dict:
     """Lock buyer funds in a new PENDING escrow.
 
     Auth: JWT or API key.  The buyer's row is locked with ``SELECT FOR UPDATE``
@@ -36,7 +36,8 @@ async def init_escrow(data: schemas.EscrowInit, buyer: models.Node = Depends(get
         buyer_id=buyer.id,
         seller_id=data.seller_id,
         amount=data.amount,
-        status="PENDING"
+        status="PENDING",
+        auto_refund_at=_utcnow() + timedelta(hours=72),
     )
     db.add(new_escrow)
     db.commit()
@@ -46,7 +47,7 @@ async def init_escrow(data: schemas.EscrowInit, buyer: models.Node = Depends(get
 
 
 @router.post("/v1/trade/escrow/settle")
-async def settle_escrow(data: schemas.EscrowSettle, caller: models.Node = Depends(get_current_node), db: Session = Depends(get_db)) -> dict:
+def settle_escrow(data: schemas.EscrowSettle, caller: models.Node = Depends(get_current_node), db: Session = Depends(get_db)) -> dict:
     """Settle an escrow after the 24-hour dispute window has closed.
 
     Auth: JWT or API key.  Only the buyer or seller of the escrow may call
@@ -104,7 +105,7 @@ async def settle_escrow(data: schemas.EscrowSettle, caller: models.Node = Depend
 
 
 @router.post("/v1/tasks/create")
-async def create_task(data: schemas.TaskCreate, buyer: models.Node = Depends(get_node), db: Session = Depends(get_db)) -> dict:
+def create_task(data: schemas.TaskCreate, buyer: models.Node = Depends(get_node), db: Session = Depends(get_db)) -> dict:
     """Create a task and auto-lock funds in escrow.
 
     Auth: API key.  Atomically deducts the skill price from the buyer's
@@ -123,7 +124,8 @@ async def create_task(data: schemas.TaskCreate, buyer: models.Node = Depends(get
         buyer_id=buyer.id,
         seller_id=skill.provider_id,
         amount=skill.price_tck,
-        status="PENDING"
+        status="PENDING",
+        auto_refund_at=_utcnow() + timedelta(hours=72),
     )
     db.add(new_escrow)
     db.flush() # Get ID
@@ -143,7 +145,7 @@ async def create_task(data: schemas.TaskCreate, buyer: models.Node = Depends(get
 
 
 @router.post("/v1/tasks/complete")
-async def complete_task(data: schemas.TaskComplete, seller: models.Node = Depends(get_node), db: Session = Depends(get_db)) -> dict:
+def complete_task(data: schemas.TaskComplete, seller: models.Node = Depends(get_node), db: Session = Depends(get_db)) -> dict:
     """Mark a task as completed and open the 24-hour dispute window.
 
     Auth: API key (seller only).  Transitions the task from OPEN to COMPLETED
@@ -179,7 +181,7 @@ async def complete_task(data: schemas.TaskComplete, seller: models.Node = Depend
 
 
 @router.post("/v1/tasks/dispute")
-async def dispute_task(data: schemas.DisputeRequest, buyer: models.Node = Depends(get_node), db: Session = Depends(get_db)) -> dict:
+def dispute_task(data: schemas.DisputeRequest, buyer: models.Node = Depends(get_node), db: Session = Depends(get_db)) -> dict:
     """Dispute a completed task, freezing escrow funds.
 
     Auth: API key (buyer only).  Can only be called while the escrow is in

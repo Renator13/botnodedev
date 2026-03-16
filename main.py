@@ -19,6 +19,7 @@ Shared authentication helpers, constants, and utilities live in
 
 import os
 import logging
+import uuid as _uuid
 from dotenv import load_dotenv
 
 # Load environment variables from project root .env
@@ -32,17 +33,16 @@ logging.basicConfig(
 
 import time
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
-from sqlalchemy.orm import Session
 
 import models
 import database
-from dependencies import limiter, logger, _utcnow, get_db, BASE_URL, DOCS_ROOT, LEGAL_ROOT
+from dependencies import limiter, logger, _utcnow, BASE_URL, DOCS_ROOT, LEGAL_ROOT
 from backend_skill_extensions import add_skill_routes_to_app
 
 # Routers
@@ -107,7 +107,6 @@ async def health_check() -> dict:
     or ``"database": "disconnected"`` if Postgres is unreachable (the API
     itself still responds so load-balancers can distinguish app vs DB failures).
     """
-    from sqlalchemy import text
     db_status = "disconnected"
     try:
         db = database.SessionLocal()
@@ -120,7 +119,24 @@ async def health_check() -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Middleware (must live on the app object)
+# Request-ID middleware (runs first — outermost)
+# ---------------------------------------------------------------------------
+@app.middleware("http")
+async def request_id_middleware(request: Request, call_next) -> Response:
+    """Assign a unique ``X-Request-ID`` to every request for log correlation.
+
+    If the client sends an ``X-Request-ID`` header it is reused; otherwise a
+    UUID4 is generated.  The ID is attached to the response headers so callers
+    can reference it in support requests.
+    """
+    request_id = request.headers.get("X-Request-ID", str(_uuid.uuid4()))
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
+
+
+# ---------------------------------------------------------------------------
+# Anti-human filter + prompt-injection guard + branding headers
 # ---------------------------------------------------------------------------
 @app.middleware("http")
 async def botnode_middleware(request: Request, call_next) -> Response:

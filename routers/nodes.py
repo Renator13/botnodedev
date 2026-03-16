@@ -5,7 +5,7 @@ import time
 import random
 import secrets
 from decimal import Decimal
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Request, HTTPException, Depends, Query
 from fastapi.responses import JSONResponse, Response
@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 import models
 import schemas
 from dependencies import (
-    limiter, audit_log, _utcnow, _pending_challenges, pwd_context,
+    limiter, audit_log, _utcnow, pwd_context,
     get_db, get_current_node, is_prime, generate_status_badge_svg,
     BASE_URL,
 )
@@ -26,7 +26,7 @@ router = APIRouter(tags=["nodes"])
 
 @router.post("/v1/node/register")
 @limiter.limit("5/minute")
-async def register_node(data: schemas.RegisterRequest, request: Request, db: Session = Depends(get_db)) -> dict:
+def register_node(data: schemas.RegisterRequest, request: Request, db: Session = Depends(get_db)) -> dict:
     """Begin node registration by issuing a unique prime-sum challenge.
 
     The challenge payload is a random mix of primes and composites.  The
@@ -60,13 +60,19 @@ async def register_node(data: schemas.RegisterRequest, request: Request, db: Ses
     random.shuffle(challenge_payload)
 
     expected_result = sum(selected_primes) * 0.5
-    expires = time.time() + 30  # 30 second window
+    expires_at = _utcnow() + timedelta(seconds=30)
 
-    _pending_challenges[data.node_id] = {
-        "payload": challenge_payload,
-        "expected": expected_result,
-        "expires": expires,
-    }
+    # Upsert: delete any old challenge for this node_id, then insert new one
+    db.query(models.PendingChallenge).filter(
+        models.PendingChallenge.node_id == data.node_id
+    ).delete()
+    db.add(models.PendingChallenge(
+        node_id=data.node_id,
+        payload=challenge_payload,
+        expected_solution=expected_result,
+        expires_at=expires_at,
+    ))
+    db.commit()
 
     return {
         "status": "NODE_PENDING_VERIFICATION",
@@ -84,7 +90,7 @@ async def register_node(data: schemas.RegisterRequest, request: Request, db: Ses
 
 @router.post("/v1/node/verify")
 @limiter.limit("10/minute")
-async def verify_node(data: schemas.VerifyRequest, request: Request, db: Session = Depends(get_db)) -> dict:
+def verify_node(data: schemas.VerifyRequest, request: Request, db: Session = Depends(get_db)) -> dict:
     """Complete registration by solving the prime-sum challenge.
 
     On success the node is persisted with an initial balance of 100 TCK,
@@ -94,14 +100,22 @@ async def verify_node(data: schemas.VerifyRequest, request: Request, db: Session
 
     Rate limit: 10 requests/minute per IP.
     """
-    # Validate against the stored per-node challenge
-    challenge = _pending_challenges.pop(data.node_id, None)
+    # Validate against the stored per-node challenge (DB-backed)
+    challenge = db.query(models.PendingChallenge).filter(
+        models.PendingChallenge.node_id == data.node_id
+    ).first()
     if not challenge:
         raise HTTPException(status_code=400, detail="No pending challenge — call /v1/node/register first")
-    if time.time() > challenge["expires"]:
+    if _utcnow() > challenge.expires_at:
+        db.delete(challenge)
+        db.commit()
         raise HTTPException(status_code=400, detail="Challenge expired — register again")
 
-    expected_result = challenge["expected"]
+    expected_result = challenge.expected_solution
+
+    # Remove the challenge row now that it's been consumed
+    db.delete(challenge)
+    db.flush()
     if not math.isclose(data.solution, expected_result, rel_tol=1e-9, abs_tol=0.01):
         raise HTTPException(status_code=400, detail="Challenge failed: Incorrect solution")
 
@@ -149,7 +163,7 @@ async def verify_node(data: schemas.VerifyRequest, request: Request, db: Session
 
 
 @router.get("/v1/nodes/{node_id}")
-async def get_node_profile(node_id: str, db: Session = Depends(get_db)) -> dict:
+def get_node_profile(node_id: str, db: Session = Depends(get_db)) -> dict:
     """Return a node's public profile: reputation, strikes, and skill catalogue.
 
     Auth: none (public endpoint).
@@ -172,7 +186,7 @@ async def get_node_profile(node_id: str, db: Session = Depends(get_db)) -> dict:
 
 
 @router.get("/v1/node/{node_id}/badge.svg")
-async def get_node_badge_svg(node_id: str, db: Session = Depends(get_db)) -> Response:
+def get_node_badge_svg(node_id: str, db: Session = Depends(get_db)) -> Response:
     """Dynamic SVG status badge for a node.
 
     Intended usage: embeddable badge (e.g. in READMEs or dashboards).
@@ -225,7 +239,7 @@ async def get_node_badge_svg(node_id: str, db: Session = Depends(get_db)) -> Res
 
 @router.post("/v1/early-access", response_model=schemas.EarlyAccessSignupResponse)
 @limiter.limit("3/minute")
-async def early_access_signup(request: Request, payload: schemas.EarlyAccessSignupRequest, db: Session = Depends(get_db)) -> dict:
+def early_access_signup(request: Request, payload: schemas.EarlyAccessSignupRequest, db: Session = Depends(get_db)) -> dict:
     """Register an email for the BotNode early access / Genesis waitlist.
 
     This is the A-step only: it creates a pre_eligible signup row and returns

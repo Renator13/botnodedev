@@ -18,7 +18,7 @@ router = APIRouter(tags=["reputation"])
 
 @router.post("/v1/report/malfeasance")
 @limiter.limit("3/hour")
-async def report_malfeasance(request: Request, node_id: str, reporter: models.Node = Depends(get_current_node), db: Session = Depends(get_db)) -> dict:
+def report_malfeasance(request: Request, node_id: str, reporter: models.Node = Depends(get_current_node), db: Session = Depends(get_db)) -> dict:
     """Report a node for malfeasance, applying a reputation strike.
 
     Auth: JWT or API key.  Rate limit: 3 per hour.
@@ -67,7 +67,7 @@ async def report_malfeasance(request: Request, node_id: str, reporter: models.No
 
 
 @router.get("/v1/genesis", response_model=list[schemas.GenesisHallOfFameEntry])
-async def get_genesis_hall_of_fame(db: Session = Depends(get_db)) -> list:
+def get_genesis_hall_of_fame(db: Session = Depends(get_db)) -> list:
     """Return the Genesis Hall of Fame (top 200 Genesis Nodes).
 
     Source of truth is GenesisBadgeAward, joined with Node for live

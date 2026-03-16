@@ -15,7 +15,7 @@ router = APIRouter(prefix="/v1/marketplace", tags=["marketplace"])
 
 
 @router.get("")
-async def get_marketplace(
+def get_marketplace(
     db: Session = Depends(get_db),
     q: Optional[str] = Query(None, max_length=200),
     min_price: Optional[float] = None,
@@ -58,7 +58,7 @@ async def get_marketplace(
 
 
 @router.post("/publish")
-async def publish_listing(data: schemas.PublishOffer, node: models.Node = Depends(get_current_node), db: Session = Depends(get_db)) -> dict:
+def publish_listing(data: schemas.PublishOffer, node: models.Node = Depends(get_current_node), db: Session = Depends(get_db)) -> dict:
     """Publish a new skill listing on the marketplace.
 
     Auth: JWT or API key.  Deducts a 0.50 TCK listing fee (row-locked to

@@ -17,7 +17,7 @@ router = APIRouter(tags=["admin"])
 
 
 @router.post("/api/v1/admin/sync/node")
-async def admin_sync_node(node_data: dict, request: Request, db: Session = Depends(get_db)) -> dict:
+def admin_sync_node(node_data: dict, request: Request, db: Session = Depends(get_db)) -> dict:
     """Create or update a node from an external admin source.
 
     Auth: ``BOTNODE_ADMIN_TOKEN`` via Bearer header.
@@ -60,7 +60,7 @@ async def admin_sync_node(node_data: dict, request: Request, db: Session = Depen
 
 
 @router.get("/v1/admin/stats")
-async def get_admin_stats(period: str = "24h", _admin: bool = Depends(require_admin_key), db: Session = Depends(get_db)) -> dict:
+def get_admin_stats(period: str = "24h", _admin: bool = Depends(require_admin_key), db: Session = Depends(get_db)) -> dict:
     """Return platform metrics for the requested period.
 
     Auth: admin Bearer key.  Periods: ``24h``, ``7d``, ``30d``, or ``all``
@@ -104,7 +104,7 @@ async def get_admin_stats(period: str = "24h", _admin: bool = Depends(require_ad
 
 
 @router.post("/v1/admin/escrows/auto-settle")
-async def auto_settle_escrows(_admin: bool = Depends(require_admin_key), db: Session = Depends(get_db)) -> dict:
+def auto_settle_escrows(_admin: bool = Depends(require_admin_key), db: Session = Depends(get_db)) -> dict:
     """Automatically settle all escrows whose dispute window has expired.
 
     This is an internal/cron endpoint, protected by ADMIN_KEY via Authorization header.
@@ -155,3 +155,33 @@ async def auto_settle_escrows(_admin: bool = Depends(require_admin_key), db: Ses
         "tax_routed_to_vault": float(total_tax),
         "timestamp": now.isoformat()
     }
+
+
+@router.post("/v1/admin/escrows/auto-refund")
+def auto_refund_escrows(_admin: bool = Depends(require_admin_key), db: Session = Depends(get_db)) -> dict:
+    """Refund PENDING escrows whose auto_refund_at deadline has passed.
+
+    Escrows stuck in PENDING (i.e. the task was never completed) beyond
+    the 72-hour timeout are automatically refunded to the buyer so that
+    funds are not frozen indefinitely.
+
+    Auth: admin Bearer key (``ADMIN_KEY`` env var).
+    """
+    now = _utcnow()
+    escrows = db.query(models.Escrow).filter(
+        models.Escrow.status == "PENDING",
+        models.Escrow.auto_refund_at != None,
+        models.Escrow.auto_refund_at <= now,
+    ).all()
+
+    count = 0
+    for escrow in escrows:
+        buyer = db.query(models.Node).filter(models.Node.id == escrow.buyer_id).first()
+        if not buyer:
+            continue
+        buyer.balance += escrow.amount
+        escrow.status = "REFUNDED"
+        count += 1
+
+    db.commit()
+    return {"status": "OK", "refunded": count}
