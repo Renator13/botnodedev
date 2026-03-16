@@ -15,6 +15,7 @@ from dependencies import (
 )
 from worker import check_and_award_genesis_badges, recalculate_cri
 from config import PROTOCOL_TAX_RATE, PENDING_ESCROW_TIMEOUT
+from ledger import record_transfer, VAULT
 
 router = APIRouter(tags=["admin"])
 
@@ -136,7 +137,8 @@ def auto_settle_escrows(_admin: bool = Depends(require_admin_key), db: Session =
             tax = escrow.amount * PROTOCOL_TAX_RATE
             payout = escrow.amount - tax
 
-            seller.balance += payout
+            record_transfer(db, "ESCROW:" + escrow.id, seller.id, payout, "ESCROW_SETTLE", escrow.id, to_node=seller)
+            record_transfer(db, "ESCROW:" + escrow.id, VAULT, tax, "PROTOCOL_TAX", escrow.id)
             escrow.status = "SETTLED"
 
             if seller.first_settled_tx_at is None:
@@ -184,9 +186,45 @@ def auto_refund_escrows(_admin: bool = Depends(require_admin_key), db: Session =
         buyer = db.query(models.Node).filter(models.Node.id == escrow.buyer_id).first()
         if not buyer:
             continue
-        buyer.balance += escrow.amount
+        record_transfer(db, "ESCROW:" + escrow.id, buyer.id, escrow.amount, "ESCROW_REFUND", escrow.id, to_node=buyer)
         escrow.status = "REFUNDED"
         count += 1
 
     db.commit()
     return {"status": "OK", "refunded": count}
+
+
+@router.post("/v1/admin/disputes/resolve")
+def resolve_dispute(
+    escrow_id: str,
+    resolution: str,
+    _admin: bool = Depends(require_admin_key),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Resolve a disputed escrow by refunding the buyer or releasing funds to the seller.
+
+    Auth: admin Bearer key.  Only escrows in DISPUTED state can be resolved.
+    """
+    escrow = db.query(models.Escrow).filter(models.Escrow.id == escrow_id).first()
+    if not escrow:
+        raise HTTPException(status_code=404, detail="Escrow not found")
+    if escrow.status != "DISPUTED":
+        raise HTTPException(status_code=400, detail="Escrow is not in DISPUTED state")
+
+    if resolution == "refund_buyer":
+        buyer = db.query(models.Node).filter(models.Node.id == escrow.buyer_id).first()
+        record_transfer(db, "ESCROW:" + escrow.id, buyer.id, escrow.amount, "DISPUTE_REFUND", escrow.id, to_node=buyer)
+        escrow.status = "REFUNDED"
+        db.commit()
+        return {"status": "REFUNDED", "escrow_id": escrow_id, "amount": str(escrow.amount), "to": buyer.id}
+    elif resolution == "release_to_seller":
+        seller = db.query(models.Node).filter(models.Node.id == escrow.seller_id).first()
+        tax = escrow.amount * PROTOCOL_TAX_RATE
+        payout = escrow.amount - tax
+        record_transfer(db, "ESCROW:" + escrow.id, seller.id, payout, "DISPUTE_RELEASE", escrow.id, to_node=seller)
+        record_transfer(db, "ESCROW:" + escrow.id, VAULT, tax, "PROTOCOL_TAX", escrow.id)
+        escrow.status = "SETTLED"
+        db.commit()
+        return {"status": "SETTLED", "escrow_id": escrow_id, "payout": str(payout), "tax": str(tax), "to": seller.id}
+    else:
+        raise HTTPException(status_code=400, detail="resolution must be 'refund_buyer' or 'release_to_seller'")

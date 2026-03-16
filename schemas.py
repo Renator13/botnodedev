@@ -39,6 +39,7 @@ class BountyRequest(BaseModel):
 class EscrowInit(BaseModel):
     seller_id: str = Field(..., min_length=3, max_length=100)
     amount: float = Field(..., gt=0, le=100000)
+    idempotency_key: Optional[str] = Field(None, max_length=100)
 
 
 class EscrowSettle(BaseModel):
@@ -73,6 +74,7 @@ class PackPurchase(BaseModel):
 class TaskCreate(BaseModel):
     skill_id: str = Field(..., max_length=100)
     input_data: dict
+    idempotency_key: Optional[str] = Field(None, max_length=100)
 
 
 class TaskComplete(BaseModel):

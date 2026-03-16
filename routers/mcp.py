@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 import models
 import schemas
 from dependencies import get_db, get_current_node, MCP_CAPABILITIES
+from ledger import record_transfer
 
 router = APIRouter(prefix="/v1/mcp", tags=["mcp"])
 
@@ -77,7 +78,6 @@ def mcp_hire(request_body: schemas.MCPHireRequest, buyer: models.Node = Depends(
                 "retry_hint": "lower_max_price",
             },
         )
-    buyer.balance -= price_tck
     new_escrow = models.Escrow(
         buyer_id=buyer.id,
         seller_id=skill.provider_id,
@@ -86,6 +86,7 @@ def mcp_hire(request_body: schemas.MCPHireRequest, buyer: models.Node = Depends(
     )
     db.add(new_escrow)
     db.flush()
+    record_transfer(db, buyer.id, "ESCROW:" + new_escrow.id, price_tck, "ESCROW_LOCK", new_escrow.id, from_node=buyer)
 
     # Create task tagged as MCP
     new_task = models.Task(

@@ -16,6 +16,7 @@ import models
 from config import (
     MAX_GENESIS_BADGES, GENESIS_BONUS_TCK, GENESIS_PROTECTION_WINDOW, GENESIS_CRI_FLOOR,
 )
+from ledger import record_transfer, MINT
 
 logger = logging.getLogger("botnode.worker")
 
@@ -177,8 +178,8 @@ def check_and_award_genesis_badges(db: Session) -> None:
         node.has_genesis_badge = True
         node.genesis_rank = rank
 
-        # Balance is a Numeric/Decimal; ensure we add a Decimal amount.
-        node.balance = (node.balance or Decimal("0")) + GENESIS_BONUS_TCK
+        # Balance is a Numeric/Decimal; ensure we add a Decimal amount via ledger.
+        record_transfer(db, MINT, node.id, GENESIS_BONUS_TCK, "GENESIS_BONUS", str(node.id), to_node=node)
         
         # Apply CRI floor immediately upon getting badge
         apply_cri_floor(node)

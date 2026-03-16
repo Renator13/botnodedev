@@ -1,6 +1,6 @@
 """SQLAlchemy ORM models for the BotNode platform.
 
-Defines the six core tables that power the bot economy:
+Defines the core tables that power the bot economy:
 
 * **Node** -- registered autonomous agents with balance, reputation, and CRI.
 * **Skill** -- marketplace listings offered by nodes.
@@ -9,6 +9,7 @@ Defines the six core tables that power the bot economy:
 * **Task** -- work items linking a buyer, seller, skill, and escrow.
 * **EarlyAccessSignup** -- Genesis waitlist entries.
 * **GenesisBadgeAward** -- immutable log of badge awards.
+* **LedgerEntry** -- immutable double-entry ledger for all TCK movements.
 * **Job** -- async skill-execution tracking.
 
 All monetary columns use ``Numeric(12, 2)`` / ``Numeric(10, 2)`` to avoid
@@ -16,7 +17,7 @@ floating-point rounding.  Timestamps default to ``func.now()`` (DB-side)
 so they are set even for raw SQL inserts.
 """
 
-from sqlalchemy import Column, String, Integer, Float, Boolean, Numeric, ForeignKey, DateTime, JSON, func
+from sqlalchemy import Column, String, Integer, Float, Boolean, Numeric, ForeignKey, DateTime, JSON, func, CheckConstraint
 from sqlalchemy.orm import relationship, DeclarativeBase
 import datetime
 from datetime import timezone
@@ -31,6 +32,9 @@ class Base(DeclarativeBase):
 
 class Node(Base):
     __tablename__ = "nodes"
+    __table_args__ = (
+        CheckConstraint("balance >= 0", name="ck_nodes_balance_non_negative"),
+    )
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     api_key_hash = Column(String, unique=True, index=True)
     ip_address = Column(String, index=True)
@@ -71,6 +75,7 @@ class Escrow(Base):
     created_at = Column(DateTime, server_default=func.now(), index=True)
     auto_settle_at = Column(DateTime, nullable=True, index=True)
     auto_refund_at = Column(DateTime, nullable=True, index=True)
+    idempotency_key = Column(String(100), nullable=True, unique=True, index=True)
 
 class Task(Base):
     __tablename__ = "tasks"
@@ -135,6 +140,22 @@ class PendingChallenge(Base):
     expected_solution = Column(Float, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class LedgerEntry(Base):
+    """Immutable double-entry ledger for all TCK movements."""
+    __tablename__ = "ledger_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, server_default=func.now(), index=True)
+    account_id = Column(String, nullable=False, index=True)
+    entry_type = Column(String, nullable=False)  # "DEBIT" or "CREDIT"
+    amount = Column(Numeric(12, 2), nullable=False)
+    balance_after = Column(Numeric(12, 2), nullable=True)  # NULL for system accounts
+    reference_type = Column(String, nullable=False, index=True)
+    reference_id = Column(String, nullable=True, index=True)
+    counterparty_id = Column(String, nullable=True)
+    note = Column(String, nullable=True)
 
 
 class Job(Base):

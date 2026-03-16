@@ -11,6 +11,7 @@ import models
 import schemas
 from dependencies import get_db, get_current_node
 from config import LISTING_FEE
+from ledger import record_transfer, VAULT
 
 router = APIRouter(prefix="/v1/marketplace", tags=["marketplace"])
 
@@ -69,7 +70,6 @@ def publish_listing(data: schemas.PublishOffer, node: models.Node = Depends(get_
     node = db.query(models.Node).filter(models.Node.id == node.id).with_for_update().first()
     if node.balance < LISTING_FEE:
         raise HTTPException(status_code=402, detail="Insufficient funds for publishing fee")
-    node.balance -= LISTING_FEE
 
     new_skill = models.Skill(
         provider_id=node.id,
@@ -78,6 +78,8 @@ def publish_listing(data: schemas.PublishOffer, node: models.Node = Depends(get_
         metadata_json=data.metadata
     )
     db.add(new_skill)
+    db.flush()
+    record_transfer(db, node.id, VAULT, LISTING_FEE, "LISTING_FEE", new_skill.id, from_node=node)
     db.commit()
 
     return {"status": "PUBLISHED", "skill_id": new_skill.id, "fee_deducted": "0.50"}

@@ -13,6 +13,7 @@ from dependencies import (
 )
 from worker import check_and_award_genesis_badges, recalculate_cri
 from config import PROTOCOL_TAX_RATE, DISPUTE_WINDOW, PENDING_ESCROW_TIMEOUT
+from ledger import record_transfer, VAULT
 
 router = APIRouter(tags=["escrow"])
 
@@ -26,12 +27,17 @@ def init_escrow(data: schemas.EscrowInit, buyer: models.Node = Depends(get_curre
     ``PENDING`` state and must transition to ``AWAITING_SETTLEMENT`` via task
     completion before it can be settled.
     """
+    # Idempotency check
+    if data.idempotency_key:
+        existing = db.query(models.Escrow).filter(models.Escrow.idempotency_key == data.idempotency_key).first()
+        if existing:
+            return {"escrow_id": existing.id, "status": "FUNDS_LOCKED", "idempotent": True}
+
     # Lock the buyer row to prevent double-spend race conditions
     buyer = db.query(models.Node).filter(models.Node.id == buyer.id).with_for_update().first()
     amount = Decimal(str(data.amount))
     if buyer.balance < amount:
         raise HTTPException(status_code=402, detail="Insufficient funds")
-    buyer.balance -= amount
 
     new_escrow = models.Escrow(
         buyer_id=buyer.id,
@@ -39,11 +45,13 @@ def init_escrow(data: schemas.EscrowInit, buyer: models.Node = Depends(get_curre
         amount=data.amount,
         status="PENDING",
         auto_refund_at=_utcnow() + PENDING_ESCROW_TIMEOUT,
+        idempotency_key=data.idempotency_key,
     )
     db.add(new_escrow)
+    db.flush()
+    record_transfer(db, buyer.id, "ESCROW:" + new_escrow.id, amount, "ESCROW_LOCK", new_escrow.id, from_node=buyer)
     db.commit()
 
-    audit_log.info(f"ESCROW_INIT buyer={buyer.id} seller={data.seller_id} amount={data.amount} escrow={new_escrow.id}")
     return {"escrow_id": new_escrow.id, "status": "FUNDS_LOCKED"}
 
 
@@ -83,9 +91,10 @@ def settle_escrow(data: schemas.EscrowSettle, caller: models.Node = Depends(get_
     tax = escrow.amount * PROTOCOL_TAX_RATE
     payout = escrow.amount - tax
 
-    # 5. Transfer to Seller
+    # 5. Transfer to Seller via ledger
     seller = db.query(models.Node).filter(models.Node.id == escrow.seller_id).first()
-    seller.balance += payout
+    record_transfer(db, "ESCROW:" + escrow.id, seller.id, payout, "ESCROW_SETTLE", escrow.id, to_node=seller)
+    record_transfer(db, "ESCROW:" + escrow.id, VAULT, tax, "PROTOCOL_TAX", escrow.id)
 
     # Mark escrow as settled
     escrow.status = "SETTLED"
@@ -101,7 +110,6 @@ def settle_escrow(data: schemas.EscrowSettle, caller: models.Node = Depends(get_
 
     db.commit()
 
-    audit_log.info(f"ESCROW_SETTLED escrow={data.escrow_id} caller={caller.id} payout={payout} tax={tax}")
     return {"status": "SETTLED", "payout": payout, "tax": tax}
 
 
@@ -116,20 +124,28 @@ def create_task(data: schemas.TaskCreate, buyer: models.Node = Depends(get_node)
     skill = db.query(models.Skill).filter(models.Skill.id == data.skill_id).first()
     if not skill: raise HTTPException(status_code=404, detail="Skill not found")
 
+    # Idempotency check
+    if data.idempotency_key:
+        existing = db.query(models.Escrow).filter(models.Escrow.idempotency_key == data.idempotency_key).first()
+        if existing:
+            task = db.query(models.Task).filter(models.Task.escrow_id == existing.id).first()
+            return {"task_id": task.id if task else None, "escrow_id": existing.id, "status": "QUEUED", "idempotent": True}
+
     # Lock buyer row to prevent double-spend
     buyer = db.query(models.Node).filter(models.Node.id == buyer.id).with_for_update().first()
     if buyer.balance < skill.price_tck:
         raise HTTPException(status_code=402, detail="Insufficient funds")
-    buyer.balance -= skill.price_tck
     new_escrow = models.Escrow(
         buyer_id=buyer.id,
         seller_id=skill.provider_id,
         amount=skill.price_tck,
         status="PENDING",
         auto_refund_at=_utcnow() + PENDING_ESCROW_TIMEOUT,
+        idempotency_key=data.idempotency_key,
     )
     db.add(new_escrow)
-    db.flush() # Get ID
+    db.flush()
+    record_transfer(db, buyer.id, "ESCROW:" + new_escrow.id, Decimal(str(skill.price_tck)), "ESCROW_LOCK", new_escrow.id, from_node=buyer)
 
     new_task = models.Task(
         skill_id=data.skill_id,

@@ -13,6 +13,7 @@ from dependencies import (
 )
 from worker import recalculate_cri
 from config import GENESIS_PROTECTION_WINDOW
+from ledger import record_transfer, VAULT
 
 router = APIRouter(tags=["reputation"])
 
@@ -47,7 +48,8 @@ def report_malfeasance(request: Request, node_id: str, reporter: models.Node = D
     if node.strikes >= 3:
         node.active = False
         confiscated = node.balance
-        node.balance = Decimal("0")
+        if confiscated > 0:
+            record_transfer(db, node.id, VAULT, confiscated, "CONFISCATION", node.id, from_node=node, note=f"banned by {reporter.id}")
         node.cri_score = 0.0
         node.cri_updated_at = _utcnow()
         db.commit()
