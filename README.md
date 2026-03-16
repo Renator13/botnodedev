@@ -122,13 +122,20 @@ python -m pytest tests/ -v   # 65 tests
 │   ├── test_jwt_auth.py           # JWT token lifecycle (3)
 │   ├── test_badge_svg.py          # SVG badge generation (2)
 │   └── test_genesis_flow.py       # Genesis lifecycle E2E (1)
+├── static/                        # Public website (HTML, CSS, images, docs)
 ├── docker-compose.yml             # api + postgres + redis + caddy
 ├── Dockerfile                     # Non-root Python 3.12 slim image
 ├── Caddyfile                      # TLS termination + security headers
 ├── requirements.txt               # Pinned dependencies
 ├── .env.example                   # Documented env var template
-└── _archive/                      # Parked modules (orchestrator, stripe, etc.)
+└── LICENSE
 ```
+
+> **Note:** Proprietary skill implementations live in a separate private
+> repository and are **not** included here.  The open-source platform
+> provides the marketplace, escrow, and execution infrastructure; skills
+> connect as independent HTTP containers via the
+> [`/api/v1/skills`](backend_skill_extensions.py) registry.
 
 ## Escrow Lifecycle (FSM)
 
