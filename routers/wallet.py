@@ -1,6 +1,21 @@
-"""Wallet endpoints: TCK purchases via Stripe, balance, and purchase history."""
+"""Wallet endpoints: TCK purchases via Stripe, balance, and purchase history.
+
+Implements a fiat-to-TCK on-ramp using Stripe Checkout (hosted).  BotNode
+never touches card data — PCI scope is SAQ-A.
+
+Webhook events handled:
+- ``checkout.session.completed`` — mint TCK to buyer
+- ``checkout.session.expired`` / ``async_payment_failed`` — mark purchase failed
+- ``charge.disputed`` — clawback TCK from buyer, freeze node
+- ``charge.refunded`` — clawback TCK from buyer
+
+This module is **feature-flagged**: endpoints are only mounted when
+``ENABLE_WALLET=true`` is set in the environment (see ``main.py``).
+"""
 
 import os
+import time
+import uuid
 import logging
 
 import stripe
@@ -18,12 +33,24 @@ logger = logging.getLogger("botnode.wallet")
 
 router = APIRouter(tags=["wallet"])
 
-# Stripe configuration — loaded from environment
+# ---------------------------------------------------------------------------
+# Stripe configuration
+# ---------------------------------------------------------------------------
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-STRIPE_SUCCESS_URL = os.getenv("STRIPE_SUCCESS_URL", "https://botnode.io/wallet/success?session_id={CHECKOUT_SESSION_ID}")
+STRIPE_SUCCESS_URL = os.getenv(
+    "STRIPE_SUCCESS_URL",
+    "https://botnode.io/wallet/success?session_id={CHECKOUT_SESSION_ID}",
+)
 STRIPE_CANCEL_URL = os.getenv("STRIPE_CANCEL_URL", "https://botnode.io/wallet/cancel")
 
+# Session TTL: 30 minutes (prevents stale pending purchases)
+CHECKOUT_SESSION_TTL = int(os.getenv("CHECKOUT_SESSION_TTL", "1800"))
+
+
+# ---------------------------------------------------------------------------
+# Public: list packages
+# ---------------------------------------------------------------------------
 
 @router.get("/v1/wallet/packages")
 def list_packages() -> dict:
@@ -40,7 +67,11 @@ def list_packages() -> dict:
                 "tck_base": p["tck_base"],
                 "tck_bonus": p["tck_bonus"],
                 "tck_total": int(p["tck_total"]),
-                "bonus_pct": f"{int(p['tck_bonus'] / p['tck_base'] * 100)}%" if p["tck_bonus"] else None,
+                "bonus_pct": (
+                    f"{int(p['tck_bonus'] / p['tck_base'] * 100)}%"
+                    if p["tck_bonus"]
+                    else None
+                ),
                 "description": p["description"],
             }
             for p in TCK_PACKAGES.values()
@@ -49,6 +80,10 @@ def list_packages() -> dict:
         "exchange_rate": "1 TCK = $0.01",
     }
 
+
+# ---------------------------------------------------------------------------
+# Authenticated: create checkout session
+# ---------------------------------------------------------------------------
 
 @router.post("/v1/wallet/checkout")
 def create_checkout(
@@ -61,9 +96,12 @@ def create_checkout(
     Auth: JWT or API key.  The ``node_id`` in the request must match the
     authenticated caller (you can only buy TCK for yourself).
 
+    The session expires after 30 minutes (configurable via
+    ``CHECKOUT_SESSION_TTL``).  A Stripe idempotency key prevents duplicate
+    sessions on client retries.
+
     Returns a ``checkout_url`` that the client should open to complete payment.
     """
-    # Verify caller owns the node_id
     if caller.id != req.node_id:
         raise HTTPException(status_code=403, detail="Cannot purchase for another node")
 
@@ -74,26 +112,29 @@ def create_checkout(
     if not stripe.api_key:
         raise HTTPException(status_code=503, detail="Payment system not configured")
 
-    import uuid
     idempotency_key = f"purchase_{req.node_id}_{req.package_id}_{uuid.uuid4().hex[:8]}"
 
     try:
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
-            line_items=[{
-                "price_data": {
-                    "currency": "usd",
-                    "unit_amount": package["price_usd_cents"],
-                    "product_data": {
-                        "name": f"BotNode {package['name']} Package",
-                        "description": package["description"],
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": "usd",
+                        "unit_amount": package["price_usd_cents"],
+                        "product_data": {
+                            "name": f"BotNode {package['name']} Package",
+                            "description": package["description"],
+                        },
                     },
-                },
-                "quantity": 1,
-            }],
+                    "quantity": 1,
+                }
+            ],
             mode="payment",
             success_url=STRIPE_SUCCESS_URL,
             cancel_url=STRIPE_CANCEL_URL,
+            expires_at=int(time.time()) + CHECKOUT_SESSION_TTL,
+            customer_creation="always",
             metadata={
                 "node_id": req.node_id,
                 "package_id": req.package_id,
@@ -101,12 +142,12 @@ def create_checkout(
                 "tck_bonus": str(package["tck_bonus"]),
                 "idempotency_key": idempotency_key,
             },
+            idempotency_key=idempotency_key,
         )
     except stripe.StripeError as e:
         logger.error(f"Stripe error creating checkout: {e}")
         raise HTTPException(status_code=502, detail="Payment provider error")
 
-    # Record pending purchase
     purchase = models.Purchase(
         node_id=req.node_id,
         package_id=req.package_id,
@@ -121,7 +162,9 @@ def create_checkout(
     db.add(purchase)
     db.commit()
 
-    logger.info(f"Checkout created: node={req.node_id} package={req.package_id} session={session.id}")
+    logger.info(
+        f"Checkout created: node={req.node_id} package={req.package_id} session={session.id}"
+    )
 
     return {
         "checkout_url": session.url,
@@ -131,15 +174,25 @@ def create_checkout(
     }
 
 
+# ---------------------------------------------------------------------------
+# Stripe webhook
+# ---------------------------------------------------------------------------
+
 @router.post("/v1/stripe/webhook")
 async def stripe_webhook(request: Request) -> dict:
-    """Receive Stripe webhook events and process completed checkouts.
+    """Receive Stripe webhook events.
 
-    Auth: Stripe signature verification (no API key — Stripe calls this).
-    This endpoint is excluded from the anti-human middleware by path prefix.
+    Auth: Stripe signature verification only (no API key).
 
-    On ``checkout.session.completed``: mints TCK to the buyer's wallet via
-    the double-entry ledger and marks the purchase as completed.
+    Handled events:
+    - ``checkout.session.completed`` — mint TCK to buyer wallet
+    - ``checkout.session.expired`` — mark purchase as failed
+    - ``checkout.session.async_payment_failed`` — mark purchase as failed
+    - ``charge.disputed`` — clawback TCK, freeze node
+    - ``charge.refunded`` — clawback TCK
+
+    Always returns 200 to Stripe to prevent infinite retry loops.
+    Internal errors are logged and the purchase is marked ``failed``.
     """
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
@@ -154,13 +207,25 @@ async def stripe_webhook(request: Request) -> dict:
     except stripe.SignatureVerificationError:
         raise HTTPException(status_code=400, detail="Invalid signature")
 
-    if event["type"] == "checkout.session.completed":
-        _handle_checkout_completed(event["data"]["object"])
-    elif event["type"] == "checkout.session.expired":
-        _handle_checkout_expired(event["data"]["object"])
+    event_type = event["type"]
+    data_object = event["data"]["object"]
 
+    if event_type == "checkout.session.completed":
+        _handle_checkout_completed(data_object)
+    elif event_type in ("checkout.session.expired", "checkout.session.async_payment_failed"):
+        _handle_checkout_failed(data_object)
+    elif event_type == "charge.disputed":
+        _handle_charge_disputed(data_object)
+    elif event_type == "charge.refunded":
+        _handle_charge_refunded(data_object)
+
+    # Always return 200 — Stripe retries on 4xx/5xx and we don't want loops
     return {"status": "ok"}
 
+
+# ---------------------------------------------------------------------------
+# Webhook handlers (private)
+# ---------------------------------------------------------------------------
 
 def _handle_checkout_completed(session: dict) -> None:
     """Process a completed Stripe Checkout — mint TCK to the buyer."""
@@ -218,13 +283,22 @@ def _handle_checkout_completed(session: dict) -> None:
     except Exception as e:
         db.rollback()
         logger.error(f"MINT failed for {node_id}: {e}")
-        raise
+        # Mark purchase as failed — do NOT re-raise (return 200 to Stripe)
+        try:
+            purchase = db.query(models.Purchase).filter(
+                models.Purchase.idempotency_key == idempotency_key
+            ).first()
+            if purchase:
+                purchase.status = "failed"
+                db.commit()
+        except Exception:
+            pass
     finally:
         db.close()
 
 
-def _handle_checkout_expired(session: dict) -> None:
-    """Mark expired checkout sessions as failed."""
+def _handle_checkout_failed(session: dict) -> None:
+    """Mark expired or payment-failed checkout sessions as failed."""
     from database import SessionLocal
 
     db = SessionLocal()
@@ -235,10 +309,111 @@ def _handle_checkout_expired(session: dict) -> None:
         if purchase and purchase.status == "pending":
             purchase.status = "failed"
             db.commit()
-            logger.info(f"Checkout expired: {session.get('id')}")
+            logger.info(f"Checkout failed/expired: {session.get('id')}")
     finally:
         db.close()
 
+
+def _handle_charge_disputed(charge: dict) -> None:
+    """Clawback TCK when a buyer opens a chargeback.
+
+    Debits the TCK from the node's balance back to VAULT and deactivates
+    the node to prevent further purchases until the dispute is resolved.
+    """
+    from database import SessionLocal
+
+    payment_intent = charge.get("payment_intent")
+    if not payment_intent:
+        logger.warning(f"Dispute without payment_intent: {charge.get('id')}")
+        return
+
+    db = SessionLocal()
+    try:
+        purchase = db.query(models.Purchase).filter(
+            models.Purchase.stripe_payment_intent == payment_intent,
+            models.Purchase.status == "completed",
+        ).first()
+        if not purchase:
+            logger.warning(f"Dispute for unknown payment_intent: {payment_intent}")
+            return
+
+        node = db.query(models.Node).filter(models.Node.id == purchase.node_id).first()
+        if not node:
+            return
+
+        # Clawback: debit the purchased TCK from node to VAULT
+        clawback_amount = min(node.balance, purchase.tck_total)
+        if clawback_amount > 0:
+            record_transfer(
+                db, node.id, VAULT, clawback_amount,
+                "CHARGEBACK_CLAWBACK", purchase.id,
+                from_node=node,
+                note=f"stripe_dispute={charge.get('id')}",
+            )
+
+        # Freeze the node
+        node.active = False
+        purchase.status = "disputed"
+        db.commit()
+
+        audit_log.warning(
+            f"CHARGEBACK node={purchase.node_id} amount={clawback_amount} "
+            f"dispute={charge.get('id')} purchase={purchase.id}"
+        )
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Chargeback handling failed: {e}")
+    finally:
+        db.close()
+
+
+def _handle_charge_refunded(charge: dict) -> None:
+    """Clawback TCK when a charge is refunded (admin-initiated or Stripe)."""
+    from database import SessionLocal
+
+    payment_intent = charge.get("payment_intent")
+    if not payment_intent:
+        return
+
+    db = SessionLocal()
+    try:
+        purchase = db.query(models.Purchase).filter(
+            models.Purchase.stripe_payment_intent == payment_intent,
+            models.Purchase.status == "completed",
+        ).first()
+        if not purchase:
+            return
+
+        node = db.query(models.Node).filter(models.Node.id == purchase.node_id).first()
+        if not node:
+            return
+
+        clawback_amount = min(node.balance, purchase.tck_total)
+        if clawback_amount > 0:
+            record_transfer(
+                db, node.id, VAULT, clawback_amount,
+                "REFUND_CLAWBACK", purchase.id,
+                from_node=node,
+                note=f"stripe_refund={charge.get('id')}",
+            )
+
+        purchase.status = "refunded"
+        db.commit()
+
+        audit_log.info(
+            f"REFUND_CLAWBACK node={purchase.node_id} amount={clawback_amount} "
+            f"charge={charge.get('id')}"
+        )
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Refund clawback failed: {e}")
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Authenticated: balance and history
+# ---------------------------------------------------------------------------
 
 @router.get("/v1/wallet/balance")
 def get_wallet_balance(
@@ -249,9 +424,7 @@ def get_wallet_balance(
 
     Auth: JWT or API key.
     """
-    total_purchased = db.query(
-        models.Purchase
-    ).filter(
+    total_purchased = db.query(models.Purchase).filter(
         models.Purchase.node_id == caller.id,
         models.Purchase.status == "completed",
     ).count()
@@ -290,11 +463,15 @@ def list_purchases(
             }
             for p in purchases
         ],
-        "total_purchased_tck": str(sum(
-            p.tck_total for p in purchases if p.status == "completed"
-        )),
+        "total_purchased_tck": str(
+            sum(p.tck_total for p in purchases if p.status == "completed")
+        ),
     }
 
+
+# ---------------------------------------------------------------------------
+# Admin: ledger reconciliation
+# ---------------------------------------------------------------------------
 
 @router.get("/v1/admin/ledger/reconcile")
 def reconcile_ledger(
@@ -309,12 +486,10 @@ def reconcile_ledger(
     """
     from sqlalchemy import func as sqlfunc
 
-    # Sum all node balances
     total_balances = db.query(
         sqlfunc.coalesce(sqlfunc.sum(models.Node.balance), 0)
     ).scalar()
 
-    # Sum credits to real nodes (not VAULT/MINT/ESCROW:*)
     total_credits = db.query(
         sqlfunc.coalesce(sqlfunc.sum(models.LedgerEntry.amount), 0)
     ).filter(
@@ -323,7 +498,6 @@ def reconcile_ledger(
         ~models.LedgerEntry.account_id.like("ESCROW:%"),
     ).scalar()
 
-    # Sum debits from real nodes
     total_debits = db.query(
         sqlfunc.coalesce(sqlfunc.sum(models.LedgerEntry.amount), 0)
     ).filter(
@@ -339,21 +513,26 @@ def reconcile_ledger(
         "valid": valid,
         "total_node_balances": str(total_balances),
         "ledger_computed_balance": str(ledger_balance),
-        "vault_balance": str(db.query(
-            sqlfunc.coalesce(sqlfunc.sum(models.LedgerEntry.amount), 0)
-        ).filter(
-            models.LedgerEntry.entry_type == "CREDIT",
-            models.LedgerEntry.account_id == "VAULT",
-        ).scalar() - db.query(
-            sqlfunc.coalesce(sqlfunc.sum(models.LedgerEntry.amount), 0)
-        ).filter(
-            models.LedgerEntry.entry_type == "DEBIT",
-            models.LedgerEntry.account_id == "VAULT",
-        ).scalar()),
-        "total_minted": str(db.query(
-            sqlfunc.coalesce(sqlfunc.sum(models.LedgerEntry.amount), 0)
-        ).filter(
-            models.LedgerEntry.entry_type == "DEBIT",
-            models.LedgerEntry.account_id == "MINT",
-        ).scalar()),
+        "vault_balance": str(
+            db.query(sqlfunc.coalesce(sqlfunc.sum(models.LedgerEntry.amount), 0))
+            .filter(
+                models.LedgerEntry.entry_type == "CREDIT",
+                models.LedgerEntry.account_id == "VAULT",
+            )
+            .scalar()
+            - db.query(sqlfunc.coalesce(sqlfunc.sum(models.LedgerEntry.amount), 0))
+            .filter(
+                models.LedgerEntry.entry_type == "DEBIT",
+                models.LedgerEntry.account_id == "VAULT",
+            )
+            .scalar()
+        ),
+        "total_minted": str(
+            db.query(sqlfunc.coalesce(sqlfunc.sum(models.LedgerEntry.amount), 0))
+            .filter(
+                models.LedgerEntry.entry_type == "DEBIT",
+                models.LedgerEntry.account_id == "MINT",
+            )
+            .scalar()
+        ),
     }
