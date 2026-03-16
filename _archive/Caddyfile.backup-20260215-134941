@@ -1,9 +1,0 @@
-botnode.io {
-    reverse_proxy api:8000
-}
-
-www.botnode.io {
-    redir https://botnode.io{uri}
-}
-
-

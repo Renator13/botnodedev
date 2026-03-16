@@ -1,83 +1,82 @@
-# Secrets and sensitive data
+# ──────────────────────────────────────────────────────────────────────────────
+# Secrets and credentials — NEVER commit these
+# ──────────────────────────────────────────────────────────────────────────────
 .env
 *.pem
 *.key
 *.crt
 *.pfx
 *.p12
-botnode.db
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Databases
+# ──────────────────────────────────────────────────────────────────────────────
 *.db
 *.sqlite
 *.sqlite3
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Proprietary skills — separate repo
+# ──────────────────────────────────────────────────────────────────────────────
+skills_developed/
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Archived / backup / runtime files — not part of the public repo
+# ──────────────────────────────────────────────────────────────────────────────
+_archive/
+backup_*/
+static_backup_*/
+skill_registry.json
+.coverage
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Python
+# ──────────────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
 *.egg
 venv/
-ENV/
-env/
-.env/
 .venv/
+ENV/
 
-# IDE
+# ──────────────────────────────────────────────────────────────────────────────
+# IDE / OS
+# ──────────────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 *~
-
-# OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
-# Logs
+# ──────────────────────────────────────────────────────────────────────────────
+# Logs and temp
+# ──────────────────────────────────────────────────────────────────────────────
 *.log
 logs/
-
-# Docker
-docker-compose.override.yml
-
-# Temporary files
 tmp/
 temp/
 
-# Backup files
+# ──────────────────────────────────────────────────────────────────────────────
+# Docker overrides
+# ──────────────────────────────────────────────────────────────────────────────
+docker-compose.override.yml
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Backup / legacy files
+# ──────────────────────────────────────────────────────────────────────────────
 *.bak
 *.backup
-
-# Skills proprietary (to be moved to separate repo)
-skills_developed/notification_router-v1/
-skills_developed/social_media_analyzer-v1/
-skills_developed/web_scraper-v1/
-skills_developed/lead_enricher-v1/
-skills_developed/scheduler-v1/
-skills_developed/diff_analyzer-v1/
-skills_developed/document_classifier-v1/
-skills_developed/data_visualizer-v1/
-skills_developed/email_parser-v1/
-skills_developed/key_point_extractor-v1/
-# ... otros 18+ skills avanzados
-.claude/
+*.proposed
+bin/
+apply_state_of_the_art_docs.sh
+cleanup_duplicates.sh
+get-docker.sh
