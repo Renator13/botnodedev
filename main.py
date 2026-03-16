@@ -12,6 +12,8 @@ from sqlalchemy.orm import sessionmaker, Session
 from typing import Optional
 import time
 import secrets
+import random
+import hashlib
 from datetime import datetime, timedelta
 from decimal import Decimal
 from html import escape
@@ -38,6 +40,9 @@ MCP_CAPABILITIES = {
 
 # Security
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+
+# Challenge nonce store: {node_id: {"payload": [...], "expected": float, "expires": float}}
+_pending_challenges: dict = {}
 
 # DB Setup
 get_db = database.get_db
@@ -367,28 +372,46 @@ async def register_node(data: schemas.RegisterRequest, request: Request, db: Ses
         if signup.linked_node_id is not None:
             raise HTTPException(status_code=400, detail="Signup token already linked to a node")
 
-    challenge_payload = [13, 24, 37, 42, 59, 61, 80, 97]
-    # Primes are: 13, 37, 59, 61, 97 -> Sum: 267. Result: 133.5
+    # Generate a unique random challenge per registration attempt
+    primes_pool = [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97]
+    composites_pool = [4,6,8,9,10,12,14,15,16,18,20,21,22,24,25,26,27,28,30,33,34,35,36,38,39,40,42,44,45,46,48,49,50,51,52,54,55,56,57,58,60,62,63,64,65,66,68,69,70,72,74,75,76,77,78,80,81,82,84,85,86,87,88,90,91,92,93,94,95,96,98,99]
+    selected_primes = random.sample(primes_pool, random.randint(3, 7))
+    selected_composites = random.sample(composites_pool, random.randint(3, 7))
+    challenge_payload = selected_primes + selected_composites
+    random.shuffle(challenge_payload)
+
+    expected_result = sum(selected_primes) * 0.5
+    expires = time.time() + 30  # 30 second window
+
+    _pending_challenges[data.node_id] = {
+        "payload": challenge_payload,
+        "expected": expected_result,
+        "expires": expires,
+    }
 
     return {
         "status": "NODE_PENDING_VERIFICATION",
         "node_id": data.node_id,
-        "wallet": {"initial_balance": 100.0, "state": "FROZEN_UNTIL_CHALLENGE_SOLVED"},
+        "wallet": {"initial_balance": "100.00", "state": "FROZEN_UNTIL_CHALLENGE_SOLVED"},
         "verification_challenge": {
             "type": "PRIME_SUM_HASH",
             "payload": challenge_payload,
             "instruction": "Sum all prime numbers in 'payload', multiply by 0.5, and POST to /v1/node/verify",
-            "timeout_ms": 200,
+            "timeout_ms": 30000,
             "ts": time.time()
         }
     }
 
 @app.post("/v1/node/verify")
 async def verify_node(data: schemas.VerifyRequest, request: Request, db: Session = Depends(get_db)):
-    # Logic: Validate the solution
-    expected_sum = sum([n for n in [13, 24, 37, 42, 59, 61, 80, 97] if is_prime(n)])
-    expected_result = expected_sum * 0.5
+    # Validate against the stored per-node challenge
+    challenge = _pending_challenges.pop(data.node_id, None)
+    if not challenge:
+        raise HTTPException(status_code=400, detail="No pending challenge — call /v1/node/register first")
+    if time.time() > challenge["expires"]:
+        raise HTTPException(status_code=400, detail="Challenge expired — register again")
 
+    expected_result = challenge["expected"]
     if abs(data.solution - expected_result) > 0.01:
         raise HTTPException(status_code=400, detail="Challenge failed: Incorrect solution")
 
@@ -412,7 +435,7 @@ async def verify_node(data: schemas.VerifyRequest, request: Request, db: Session
         id=data.node_id,
         api_key_hash=hashed_secret,
         ip_address=request.client.host,
-        balance=100.0,
+        balance=Decimal("100.00"),
         signup_token=data.signup_token if getattr(data, "signup_token", None) else None,
     )
     db.add(new_node)
@@ -463,12 +486,12 @@ async def get_marketplace(
 
 @app.post("/v1/trade/escrow/init")
 async def init_escrow(data: schemas.EscrowInit, buyer: models.Node = Depends(get_current_node), db: Session = Depends(get_db)):
-    # 2. Check balance
-    if buyer.balance < Decimal(str(data.amount)):
+    # Lock the buyer row to prevent double-spend race conditions
+    buyer = db.query(models.Node).filter(models.Node.id == buyer.id).with_for_update().first()
+    amount = Decimal(str(data.amount))
+    if buyer.balance < amount:
         raise HTTPException(status_code=402, detail="Insufficient funds")
-    
-    # 3. Lock funds
-    buyer.balance -= Decimal(str(data.amount))
+    buyer.balance -= amount
     
     new_escrow = models.Escrow(
         buyer_id=buyer.id,
@@ -491,10 +514,17 @@ async def settle_escrow(data: schemas.EscrowSettle, caller: models.Node = Depend
     if caller.id not in (escrow.buyer_id, escrow.seller_id):
         raise HTTPException(status_code=403, detail="Not a party to this escrow")
 
-    # Enforce FSM: only allow settlement from PENDING or AWAITING_SETTLEMENT
-    if escrow.status not in ["PENDING", "AWAITING_SETTLEMENT"]:
-        raise HTTPException(status_code=400, detail="Invalid escrow state for settlement")
-    
+    # Enforce FSM: only allow settlement from AWAITING_SETTLEMENT
+    if escrow.status not in ["AWAITING_SETTLEMENT"]:
+        raise HTTPException(status_code=400, detail="Escrow not ready for settlement")
+
+    # Enforce dispute window: cannot settle before auto_settle_at
+    if escrow.auto_settle_at and datetime.utcnow() < escrow.auto_settle_at:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Dispute window open until {escrow.auto_settle_at.isoformat()}Z"
+        )
+
     # 4. Calculate Tax (3%)
     tax = escrow.amount * Decimal("0.03")
     payout = escrow.amount - tax
@@ -521,10 +551,9 @@ async def settle_escrow(data: schemas.EscrowSettle, caller: models.Node = Depend
 
 @app.post("/v1/marketplace/publish")
 async def publish_listing(data: schemas.PublishOffer, node: models.Node = Depends(get_current_node), db: Session = Depends(get_db)):
-    # 1. Deduct 0.5 TCK fee
+    node = db.query(models.Node).filter(models.Node.id == node.id).with_for_update().first()
     if node.balance < Decimal("0.5"):
         raise HTTPException(status_code=402, detail="Insufficient funds for publishing fee")
-    
     node.balance -= Decimal("0.5")
     
     new_skill = models.Skill(
@@ -641,10 +670,10 @@ async def create_task(data: schemas.TaskCreate, buyer: models.Node = Depends(get
     skill = db.query(models.Skill).filter(models.Skill.id == data.skill_id).first()
     if not skill: raise HTTPException(status_code=404, detail="Skill not found")
     
+    # Lock buyer row to prevent double-spend
+    buyer = db.query(models.Node).filter(models.Node.id == buyer.id).with_for_update().first()
     if buyer.balance < skill.price_tck:
         raise HTTPException(status_code=402, detail="Insufficient funds")
-    
-    # Auto-init Escrow
     buyer.balance -= skill.price_tck
     new_escrow = models.Escrow(
         buyer_id=buyer.id,
@@ -722,6 +751,8 @@ async def mcp_hire(request_body: schemas.MCPHireRequest, buyer: models.Node = De
 
     price_tck = skill.price_tck
 
+    # Lock buyer row to prevent double-spend
+    buyer = db.query(models.Node).filter(models.Node.id == buyer.id).with_for_update().first()
     if buyer.balance < price_tck:
         return JSONResponse(
             status_code=402,
@@ -731,8 +762,6 @@ async def mcp_hire(request_body: schemas.MCPHireRequest, buyer: models.Node = De
                 "retry_hint": "lower_max_price",
             },
         )
-
-    # Lock funds in escrow
     buyer.balance -= price_tck
     new_escrow = models.Escrow(
         buyer_id=buyer.id,
