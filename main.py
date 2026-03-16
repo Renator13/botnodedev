@@ -316,16 +316,16 @@ def require_admin_key(request: Request):
 
 @app.post("/api/v1/admin/sync/node")
 async def admin_sync_node(node_data: dict, request: Request, db: Session = Depends(get_db)):
-    # Validación del token admin
+    # Validate admin token
     admin_token = request.headers.get("Authorization", "").replace("Bearer ", "")
     if not verify_admin_token(admin_token):
         raise HTTPException(status_code=401, detail="Admin authentication failed")
-    
-    # Verificar si el nodo ya existe
+
+    # Check if the node already exists
     node = db.query(models.Node).filter(models.Node.id == node_data["id"]).first()
-    
+
     if node:
-        # Actualizar nodo existente
+        # Update existing node
         for key, value in node_data.items():
             if hasattr(node, key) and key != "id" and key != "created_at":
                 if key == "balance" or key == "reputation_score":
@@ -333,12 +333,13 @@ async def admin_sync_node(node_data: dict, request: Request, db: Session = Depen
                 else:
                     setattr(node, key, value)
     else:
-        # Crear nuevo nodo
-        # Convertir floats de JSON a Decimal para la BD
+        # Create new node — convert JSON floats to Decimal for the DB
         processed_data = node_data.copy()
-        if "balance" in processed_data: processed_data["balance"] = Decimal(str(processed_data["balance"]))
-        if "reputation_score" in processed_data: processed_data["reputation_score"] = Decimal(str(processed_data["reputation_score"]))
-        # created_at se maneja por defecto o se parsea si es necesario
+        if "balance" in processed_data:
+            processed_data["balance"] = Decimal(str(processed_data["balance"]))
+        if "reputation_score" in processed_data:
+            processed_data["reputation_score"] = Decimal(str(processed_data["reputation_score"]))
+        # Parse created_at if provided, otherwise let the DB default handle it
         if "created_at" in processed_data:
             processed_data["created_at"] = datetime.fromisoformat(processed_data["created_at"])
             
