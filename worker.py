@@ -1,13 +1,25 @@
+"""Background worker functions for BotNode.
+
+Contains CRI (Cryptographic Reliability Index) recalculation, Genesis badge
+awarding logic, and related helper utilities that run outside the request
+cycle.
+"""
+
+import logging
 from decimal import Decimal
 from datetime import datetime, timedelta, timezone
 
-
-def _utcnow():
-    return datetime.now(timezone.utc).replace(tzinfo=None)
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 import models
+
+logger = logging.getLogger("botnode.worker")
+
+
+def _utcnow():
+    """Return the current UTC time as a naive datetime."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 MAX_GENESIS_BADGES = 200
@@ -72,7 +84,7 @@ def recalculate_cri(node: models.Node, db: Session) -> float:
     return cri
 
 
-def apply_cri_floor(node: models.Node) -> None:
+def apply_cri_floor(node: models.Node) -> None:  # noqa: D401
     """Apply the 'CRI Floor 1.0' logic for Genesis Nodes.
 
     Rule: If a node has a Genesis Badge, its reputation score cannot drop below 1.0
@@ -115,7 +127,7 @@ def check_and_award_genesis_badges(db: Session) -> None:
     visible within the current transaction.
     """
 
-    print("[GenesisWorker] Checking for Genesis badges...")
+    logger.info("Checking for Genesis badges...")
 
     # 1) How many Genesis badges have already been awarded?
     current_count = (
@@ -126,9 +138,8 @@ def check_and_award_genesis_badges(db: Session) -> None:
 
     if current_count >= MAX_GENESIS_BADGES:
         # Nothing to do; cap already reached.
-        print(
-            f"[GenesisWorker] {current_count} badges already awarded; "
-            "no slots remaining."
+        logger.info(
+            "%d badges already awarded; no slots remaining.", current_count
         )
         return
 
@@ -153,7 +164,7 @@ def check_and_award_genesis_badges(db: Session) -> None:
     )
 
     if not eligible_nodes:
-        print("[GenesisWorker] No eligible nodes found for Genesis badges.")
+        logger.info("No eligible nodes found for Genesis badges.")
         return
 
     # 3) Award badges to the first N eligible nodes within the remaining slots.
@@ -183,10 +194,7 @@ def check_and_award_genesis_badges(db: Session) -> None:
         )
         db.add(award)
 
-        print(
-            f"[GenesisWorker] Awarded Genesis Badge #{rank} "
-            f"to node {node.id}"
-        )
+        logger.info("Awarded Genesis Badge #%d to node %s", rank, node.id)
 
     # Ensure all changes are pushed to the DB within the current
     # transaction. The outer caller is expected to commit.

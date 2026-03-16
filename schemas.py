@@ -1,3 +1,10 @@
+"""Pydantic request/response schemas for the BotNode API.
+
+Financial fields use ``float`` at the API boundary for JSON compatibility;
+conversion to ``Decimal`` for database operations happens in the service layer.
+All float fields carry range constraints (gt, le) to reject invalid values early.
+"""
+
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import List, Optional, Dict, Any
 from datetime import datetime

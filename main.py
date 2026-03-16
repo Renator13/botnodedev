@@ -1,10 +1,40 @@
+"""BotNode Unified API Server.
+
+This module implements the core REST API for the BotNode decentralized
+bot-economy platform.  It is built on FastAPI and exposes endpoints grouped
+into several functional areas:
+
+* **Node lifecycle** -- registration with a cryptographic prime-sum challenge,
+  verification, and JWT-based session tokens (``/v1/node/register``,
+  ``/v1/node/verify``).
+* **Marketplace** -- browsable skill listings with search, price and category
+  filters, plus a publish endpoint that charges a listing fee in TCK
+  (``/v1/marketplace``, ``/v1/marketplace/publish``).
+* **Trade & Escrow** -- buyer-initiated escrow with a 24-hour dispute window,
+  automatic settlement via an admin cron endpoint, and 3 % protocol tax
+  (``/v1/trade/escrow/*``, ``/v1/tasks/*``).
+* **MCP bridge** -- Model Context Protocol integration that wraps the
+  task/escrow flow for external AI agent toolchains (``/v1/mcp/*``).
+* **Reputation & Genesis program** -- malfeasance reporting, CRI
+  (Cryptographic Reliability Index) scoring, Genesis badge awards, and a
+  public Hall of Fame (``/v1/report/malfeasance``, ``/v1/genesis``).
+* **Admin** -- statistics dashboard and auto-settle cron, protected by a
+  bearer admin key (``/v1/admin/*``).
+* **Static content** -- landing page, documentation, legal pages,
+  transmissions blog, and mission protocol files served from disk.
+
+All monetary values are stored and manipulated as ``decimal.Decimal`` to
+avoid floating-point rounding errors.  Structured JSON logging is emitted
+via the standard ``logging`` module.
+"""
+
 import os
 import logging
+import math
 from dotenv import load_dotenv
 
-# Load environment variables — project .env first, fallback to legacy path
+# Load environment variables from project root .env
 load_dotenv()
-load_dotenv("/home/ubuntu/.openclaw/.env", override=False)
 
 # Structured logging
 logging.basicConfig(
@@ -12,6 +42,7 @@ logging.basicConfig(
     format='{"ts":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","msg":"%(message)s"}',
 )
 audit_log = logging.getLogger("botnode.audit")
+logger = logging.getLogger("botnode.api")
 
 from fastapi import FastAPI, Request, HTTPException, Depends, Query
 from fastapi.responses import JSONResponse, FileResponse, Response
@@ -30,11 +61,14 @@ import hashlib
 from datetime import datetime, timedelta, timezone
 
 
+from decimal import Decimal
+from html import escape
+
+
 def _utcnow():
     """Return current UTC time as a naive datetime for DB compatibility."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
-from decimal import Decimal
-from html import escape
+
 from passlib.context import CryptContext
 import models, schemas, database
 from auth.jwt_tokens import issue_access_token, verify_access_token
@@ -78,15 +112,15 @@ retry_delay = 5
 for i in range(max_retries):
     try:
         models.Base.metadata.create_all(bind=engine)
-        print("Database initialized successfully.")
+        logger.info("Database initialized successfully.")
         break
     except Exception as e:
-        print(f"Database connection failed (attempt {i+1}/{max_retries}): {e}")
+        logger.error(f"Database connection failed (attempt {i+1}/{max_retries}): {e}")
         if i < max_retries - 1:
-            print(f"Retrying in {retry_delay} seconds...")
+            logger.info(f"Retrying in {retry_delay} seconds...")
             time.sleep(retry_delay)
         else:
-            print("CRITICAL: Database failed to initialize after all retries. Exiting.")
+            logger.critical("CRITICAL: Database failed to initialize after all retries. Exiting.")
             import sys
             sys.exit(1)
 
@@ -474,7 +508,7 @@ async def verify_node(data: schemas.VerifyRequest, request: Request, db: Session
         raise HTTPException(status_code=400, detail="Challenge expired — register again")
 
     expected_result = challenge["expected"]
-    if abs(data.solution - expected_result) > 0.01:
+    if not math.isclose(data.solution, expected_result, rel_tol=1e-9, abs_tol=0.01):
         raise HTTPException(status_code=400, detail="Challenge failed: Incorrect solution")
 
     # Optional Genesis early-access linkage via signup_token
@@ -538,6 +572,7 @@ async def get_marketplace(
     if max_price is not None:
         query = query.filter(models.Skill.price_tck <= max_price)
     if category:
+        query = query.filter(models.Skill.metadata_json.isnot(None))
         query = query.filter(models.Skill.metadata_json["category"].astext == category)
 
     total = query.count()
@@ -549,7 +584,10 @@ async def get_marketplace(
         "total": total,
         "limit": limit,
         "offset": offset,
-        "listings": skills
+        "listings": [
+            {"id": s.id, "provider_id": s.provider_id, "label": s.label, "price_tck": str(s.price_tck), "metadata": s.metadata_json}
+            for s in skills
+        ]
     }
 
 @app.post("/v1/trade/escrow/init")
@@ -635,7 +673,7 @@ async def publish_listing(data: schemas.PublishOffer, node: models.Node = Depend
     db.add(new_skill)
     db.commit()
     
-    return {"status": "PUBLISHED", "skill_id": new_skill.id, "fee_deducted": 0.5}
+    return {"status": "PUBLISHED", "skill_id": new_skill.id, "fee_deducted": "0.50"}
 
 @app.post("/v1/report/malfeasance")
 @limiter.limit("3/hour")
@@ -660,7 +698,7 @@ async def report_malfeasance(request: Request, node_id: str, reporter: models.No
     if node.strikes >= 3:
         node.active = False
         confiscated = node.balance
-        node.balance = 0
+        node.balance = Decimal("0")
         node.cri_score = 0.0
         node.cri_updated_at = _utcnow()
         db.commit()
@@ -929,7 +967,7 @@ async def mcp_wallet(node: models.Node = Depends(get_current_node), db: Session 
 
     return {
         "node_id": node.id,
-        "balance_tck": float(node.balance),
+        "balance_tck": str(node.balance),
         "pending_escrows": pending_escrows,
         "open_tasks": open_tasks,
     }
@@ -1031,7 +1069,6 @@ async def get_node_badge_svg(node_id: str, db: Session = Depends(get_db)):
     active_days = max(0, delta.days)
 
     # CRI: use persisted score from worker, recalculate if stale (>1h) or missing
-    from worker import recalculate_cri
     cri_val = node.cri_score
     if cri_val is None or node.cri_updated_at is None or (_utcnow() - node.cri_updated_at).total_seconds() > 3600:
         cri_val = recalculate_cri(node, db)
@@ -1173,7 +1210,7 @@ async def auto_settle_escrows(_admin: bool = Depends(require_admin_key), db: Ses
         except Exception as e:
             db.rollback()
             failed += 1
-            print(f"Auto-settle failed for escrow {escrow.id}: {e}")
+            logger.error(f"Auto-settle failed for escrow {escrow.id}: {e}")
 
     return {
         "status": "OK",

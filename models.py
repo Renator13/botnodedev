@@ -1,11 +1,13 @@
-from sqlalchemy import Column, String, Integer, Float, Boolean, Numeric, ForeignKey, DateTime, JSON
-from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, String, Integer, Float, Boolean, Numeric, ForeignKey, DateTime, JSON, func
+from sqlalchemy.orm import relationship, DeclarativeBase
 import datetime
 from datetime import timezone
+from decimal import Decimal
 import uuid
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
 
 class Node(Base):
     __tablename__ = "nodes"
@@ -13,11 +15,11 @@ class Node(Base):
     api_key_hash = Column(String, unique=True, index=True)
     ip_address = Column(String, index=True)
     fingerprint = Column(String, index=True)
-    balance = Column(Numeric(12, 2), default=100.0)
+    balance = Column(Numeric(12, 2), default=Decimal("100.00"))
     reputation_score = Column(Float, default=1.0)
     strikes = Column(Integer, default=0)
     active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.datetime.now(timezone.utc).replace(tzinfo=None))
+    created_at = Column(DateTime, server_default=func.now())
 
     # CRI (Cryptographic Reliability Index) — persisted, recalculated by worker
     cri_score = Column(Float, default=50.0)
@@ -46,7 +48,7 @@ class Escrow(Base):
     amount = Column(Numeric(10, 2))
     status = Column(String, default="PENDING", index=True)
     proof_hash = Column(String, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.datetime.now(timezone.utc).replace(tzinfo=None), index=True)
+    created_at = Column(DateTime, server_default=func.now(), index=True)
     auto_settle_at = Column(DateTime, nullable=True, index=True)
 
 class Task(Base):
@@ -61,7 +63,7 @@ class Task(Base):
     escrow_id = Column(String, ForeignKey("escrows.id"), nullable=True)
     integration = Column(String, nullable=True)
     capability = Column(String, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.datetime.now(timezone.utc).replace(tzinfo=None), index=True)
+    created_at = Column(DateTime, server_default=func.now(), index=True)
 
 
 class EarlyAccessSignup(Base):
@@ -81,7 +83,7 @@ class EarlyAccessSignup(Base):
     agent_type = Column(String(50), nullable=True)
     primary_capability = Column(String(100), nullable=True)
     why_joining = Column(String, nullable=True)  # TEXT in Postgres
-    created_at = Column(DateTime, default=lambda: datetime.datetime.now(timezone.utc).replace(tzinfo=None))
+    created_at = Column(DateTime, server_default=func.now())
     status = Column(String(50), default="pre_eligible", index=True)
     linked_node_id = Column(String(100), nullable=True)
 
@@ -99,7 +101,7 @@ class GenesisBadgeAward(Base):
     id = Column(Integer, primary_key=True, index=True)
     node_id = Column(String(100), nullable=False, index=True)  # no FK constraint (yet)
     genesis_rank = Column(Integer, nullable=False, index=True)
-    awarded_at = Column(DateTime, default=lambda: datetime.datetime.now(timezone.utc).replace(tzinfo=None), index=True)
+    awarded_at = Column(DateTime, server_default=func.now(), index=True)
     first_tx_id = Column(String(100), nullable=True)
     badge_url = Column(String(255), nullable=True)
 
@@ -113,7 +115,7 @@ class Job(Base):
     parameters = Column(JSON, nullable=False)
     status = Column(String, default="queued")  # queued, processing, completed, failed
     priority = Column(String, default="normal")  # high, normal, low
-    created_at = Column(DateTime, default=lambda: datetime.datetime.now(timezone.utc).replace(tzinfo=None))
+    created_at = Column(DateTime, server_default=func.now())
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     result = Column(JSON, nullable=True)
