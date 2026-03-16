@@ -18,7 +18,7 @@ skills_router = APIRouter(prefix="/api/v1/skills", tags=["skills"])
 # Configuración de entorno
 IS_DOCKER = os.getenv("IS_DOCKER", "false").lower() == "true"
 BASE_HOST = "localhost" if not IS_DOCKER else "skill"
-INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "botnode-internal-key")
+INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "")
 
 # Registro dinámico de skills
 SKILL_REGISTRY: Dict[str, Dict] = {}

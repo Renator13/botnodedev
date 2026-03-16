@@ -206,7 +206,10 @@ def get_current_node(request: Request, db: Session = Depends(get_db)):
     return node
 
 def verify_admin_token(token: str):
-    return token == os.getenv("BOTNODE_ADMIN_TOKEN", "botnode_admin_secret_2026")
+    expected = os.getenv("BOTNODE_ADMIN_TOKEN")
+    if not expected:
+        raise HTTPException(status_code=503, detail="Admin token not configured")
+    return secrets.compare_digest(token, expected)
 
 @app.post("/api/v1/admin/sync/node")
 async def admin_sync_node(node_data: dict, request: Request, db: Session = Depends(get_db)):
@@ -967,9 +970,12 @@ async def get_genesis_hall_of_fame(db: Session = Depends(get_db)):
 
 @app.get("/v1/admin/stats")
 async def get_admin_stats(period: str = "24h", admin_key: str = "", db: Session = Depends(get_db)):
-    if admin_key != os.getenv("ADMIN_KEY", "botnode_admin_2026"):
+    expected_admin_key = os.getenv("ADMIN_KEY")
+    if not expected_admin_key:
+        raise HTTPException(status_code=503, detail="Admin key not configured")
+    if not secrets.compare_digest(admin_key, expected_admin_key):
         raise HTTPException(status_code=401, detail="Unauthorized")
-    
+
     now = datetime.utcnow()
     if period == "24h":
         start_date = now - timedelta(days=1)
@@ -1014,7 +1020,10 @@ async def auto_settle_escrows(admin_key: str = "", db: Session = Depends(get_db)
     It finds all escrows in AWAITING_SETTLEMENT with auto_settle_at <= now,
     credits the seller (minus 3% tax to the Vault), and marks them as SETTLED.
     """
-    if admin_key != os.getenv("ADMIN_KEY", "botnode_admin_2026"):
+    expected_admin_key = os.getenv("ADMIN_KEY")
+    if not expected_admin_key:
+        raise HTTPException(status_code=503, detail="Admin key not configured")
+    if not secrets.compare_digest(admin_key, expected_admin_key):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     now = datetime.utcnow()
