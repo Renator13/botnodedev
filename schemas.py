@@ -1,78 +1,98 @@
-from pydantic import BaseModel, EmailStr
-from typing import List, Optional, Dict
+from pydantic import BaseModel, EmailStr, Field, field_validator
+from typing import List, Optional, Dict, Any
 from datetime import datetime
+from decimal import Decimal
+
 
 class RegisterRequest(BaseModel):
-    node_id: str
-    signup_token: Optional[str] = None
+    node_id: str = Field(..., min_length=3, max_length=100, pattern=r'^[a-zA-Z0-9_-]+$')
+    signup_token: Optional[str] = Field(None, max_length=64)
+
 
 class VerifyRequest(BaseModel):
-    node_id: str
+    node_id: str = Field(..., min_length=3, max_length=100)
     solution: float
-    signup_token: Optional[str] = None
+    signup_token: Optional[str] = Field(None, max_length=64)
+
 
 class SkillOffer(BaseModel):
     type: str = "SKILL_OFFER"
-    label: str
-    price_tck: float
-    metadata: Dict
+    label: str = Field(..., min_length=1, max_length=200)
+    price_tck: float = Field(..., gt=0, le=10000)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
 
 class BountyRequest(BaseModel):
     type: str = "TASK_BOUNTY"
-    task_description: str
-    max_budget: float
-    deadline_ms: int
+    task_description: str = Field(..., min_length=1, max_length=5000)
+    max_budget: float = Field(..., gt=0, le=100000)
+    deadline_ms: int = Field(..., gt=0, le=86400000)
+
 
 class EscrowInit(BaseModel):
-    seller_id: str
-    amount: float
+    seller_id: str = Field(..., min_length=3, max_length=100)
+    amount: float = Field(..., gt=0, le=100000)
+
 
 class EscrowSettle(BaseModel):
-    escrow_id: str
-    proof_hash: str
+    escrow_id: str = Field(..., max_length=100)
+    proof_hash: str = Field(..., min_length=1, max_length=256)
+
 
 class PublishOffer(BaseModel):
-    type: str # SKILL_OFFER or TASK_BOUNTY
-    label: str
-    price_tck: float
-    metadata: Dict
+    type: str = Field(..., max_length=50)
+    label: str = Field(..., min_length=1, max_length=200)
+    price_tck: float = Field(..., gt=0, le=10000)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator('type')
+    @classmethod
+    def validate_type(cls, v):
+        if v not in ("SKILL_OFFER", "TASK_BOUNTY"):
+            raise ValueError("type must be SKILL_OFFER or TASK_BOUNTY")
+        return v
+
 
 class BetRequest(BaseModel):
-    amount: float
+    amount: float = Field(..., gt=0, le=100000)
+
 
 class PackPurchase(BaseModel):
-    pack_name: str # Starter, Pro, Enterprise
-    fiat_amount: float
-    currency: str = "EUR"
+    pack_name: str = Field(..., max_length=50)
+    fiat_amount: float = Field(..., gt=0, le=100000)
+    currency: str = Field("EUR", max_length=10)
+
 
 class TaskCreate(BaseModel):
-    skill_id: str
+    skill_id: str = Field(..., max_length=100)
     input_data: dict
 
+
 class TaskComplete(BaseModel):
-    task_id: str
+    task_id: str = Field(..., max_length=100)
     output_data: dict
-    proof_hash: str
+    proof_hash: str = Field(..., min_length=1, max_length=256)
+
 
 class DisputeRequest(BaseModel):
-    task_id: str
-    reason: str
+    task_id: str = Field(..., max_length=100)
+    reason: str = Field(..., min_length=1, max_length=2000)
 
 
 class MCPHireRequest(BaseModel):
-    integration: str  # "claude" | "cursor" | "zed" | "other"
-    capability: str
+    integration: str = Field(..., max_length=50)
+    capability: str = Field(..., max_length=100)
     payload: dict
-    max_price: Optional[float] = 1.0
-    deadline_seconds: Optional[int] = 30
+    max_price: Optional[float] = Field(1.0, gt=0, le=10000)
+    deadline_seconds: Optional[int] = Field(30, gt=0, le=3600)
 
 
 class EarlyAccessSignupRequest(BaseModel):
     email: EmailStr
-    node_name: Optional[str] = None
-    agent_type: Optional[str] = None
-    primary_capability: Optional[str] = None
-    why_joining: Optional[str] = None
+    node_name: Optional[str] = Field(None, max_length=100)
+    agent_type: Optional[str] = Field(None, max_length=50)
+    primary_capability: Optional[str] = Field(None, max_length=100)
+    why_joining: Optional[str] = Field(None, max_length=2000)
 
 
 class EarlyAccessSignupResponse(BaseModel):
@@ -88,13 +108,13 @@ class GenesisHallOfFameEntry(BaseModel):
 
 
 class SkillExecuteRequest(BaseModel):
-    skill_id: str
+    skill_id: str = Field(..., max_length=100)
     parameters: dict
-    priority: Optional[str] = "normal"  # "high", "normal", "low"
+    priority: Optional[str] = Field("normal", pattern=r'^(high|normal|low)$')
 
 
 class SkillExecuteResponse(BaseModel):
     job_id: str
     status: str
     queue_position: Optional[int] = None
-    estimated_wait: Optional[int] = None  # seconds
+    estimated_wait: Optional[int] = None

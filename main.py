@@ -4,11 +4,15 @@ from dotenv import load_dotenv
 # Load global environment variables BEFORE other imports
 load_dotenv("/home/ubuntu/.openclaw/.env")
 
-from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi import FastAPI, Request, HTTPException, Depends, Query
 from fastapi.responses import JSONResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker, Session
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from typing import Optional
 import time
 import secrets
@@ -21,6 +25,9 @@ from passlib.context import CryptContext
 import models, schemas, database
 from auth.jwt_tokens import issue_access_token, verify_access_token
 from worker import check_and_award_genesis_badges, recalculate_cri
+
+# Rate limiter
+limiter = Limiter(key_func=get_remote_address)
 
 # Static mapping for MCP capabilities → internal skills (v1)
 MCP_CAPABILITIES = {
@@ -70,6 +77,19 @@ for i in range(max_retries):
 from backend_skill_extensions import add_skill_routes_to_app
 app = FastAPI(title="BotNode.io Core Engine")
 
+# Rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS — restrict to known origins
+ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "https://botnode.io").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "X-API-KEY", "Content-Type"],
+    allow_credentials=False,
+)
 
 # Initialize and add skill routes
 add_skill_routes_to_app(app)
@@ -230,6 +250,19 @@ def verify_admin_token(token: str):
         raise HTTPException(status_code=503, detail="Admin token not configured")
     return secrets.compare_digest(token, expected)
 
+def require_admin_key(request: Request):
+    """Dependency: extract admin key from Authorization header, not query params."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing admin Authorization header")
+    key = auth.removeprefix("Bearer ")
+    expected = os.getenv("ADMIN_KEY")
+    if not expected:
+        raise HTTPException(status_code=503, detail="Admin key not configured")
+    if not secrets.compare_digest(key, expected):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return True
+
 @app.post("/api/v1/admin/sync/node")
 async def admin_sync_node(node_data: dict, request: Request, db: Session = Depends(get_db)):
     # Validación del token admin
@@ -356,6 +389,7 @@ def generate_status_badge_svg(node: models.Node, stats: dict) -> str:
 
 # 3. Endpoints
 @app.post("/v1/node/register")
+@limiter.limit("5/minute")
 async def register_node(data: schemas.RegisterRequest, request: Request, db: Session = Depends(get_db)):
     # Prevent duplicate registration of the same ID
     existing = db.query(models.Node).filter(models.Node.id == data.node_id).first()
@@ -403,6 +437,7 @@ async def register_node(data: schemas.RegisterRequest, request: Request, db: Ses
     }
 
 @app.post("/v1/node/verify")
+@limiter.limit("10/minute")
 async def verify_node(data: schemas.VerifyRequest, request: Request, db: Session = Depends(get_db)):
     # Validate against the stored per-node challenge
     challenge = _pending_challenges.pop(data.node_id, None)
@@ -459,10 +494,12 @@ async def verify_node(data: schemas.VerifyRequest, request: Request, db: Session
 @app.get("/v1/marketplace")
 async def get_marketplace(
     db: Session = Depends(get_db),
-    q: Optional[str] = None,
+    q: Optional[str] = Query(None, max_length=200),
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
-    category: Optional[str] = None,
+    category: Optional[str] = Query(None, max_length=50),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
 ):
     query = db.query(models.Skill)
 
@@ -473,14 +510,17 @@ async def get_marketplace(
     if max_price is not None:
         query = query.filter(models.Skill.price_tck <= max_price)
     if category:
-        # Assuming metadata_json is a JSON/JSONB column and category is stored under the "category" key
         query = query.filter(models.Skill.metadata_json["category"].astext == category)
 
-    skills = query.all()
+    total = query.count()
+    skills = query.offset(offset).limit(limit).all()
 
     return {
         "timestamp": int(time.time()),
         "market_status": "HIGH_LIQUIDITY",
+        "total": total,
+        "limit": limit,
+        "offset": offset,
         "listings": skills
     }
 
@@ -568,7 +608,8 @@ async def publish_listing(data: schemas.PublishOffer, node: models.Node = Depend
     return {"status": "PUBLISHED", "skill_id": new_skill.id, "fee_deducted": 0.5}
 
 @app.post("/v1/report/malfeasance")
-async def report_malfeasance(node_id: str, reporter: models.Node = Depends(get_current_node), db: Session = Depends(get_db)):
+@limiter.limit("3/hour")
+async def report_malfeasance(request: Request, node_id: str, reporter: models.Node = Depends(get_current_node), db: Session = Depends(get_db)):
     if reporter.id == node_id:
         raise HTTPException(status_code=400, detail="Cannot report yourself")
     node = db.query(models.Node).filter(models.Node.id == node_id).first()
@@ -619,7 +660,8 @@ async def get_mission_protocol():
 
 
 @app.post("/v1/early-access", response_model=schemas.EarlyAccessSignupResponse)
-async def early_access_signup(payload: schemas.EarlyAccessSignupRequest, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+async def early_access_signup(request: Request, payload: schemas.EarlyAccessSignupRequest, db: Session = Depends(get_db)):
     """Register an email for the BotNode early access / Genesis waitlist.
 
     This is the A-step only: it creates a pre_eligible signup row and returns
@@ -1018,12 +1060,7 @@ async def get_genesis_hall_of_fame(db: Session = Depends(get_db)):
 
 
 @app.get("/v1/admin/stats")
-async def get_admin_stats(period: str = "24h", admin_key: str = "", db: Session = Depends(get_db)):
-    expected_admin_key = os.getenv("ADMIN_KEY")
-    if not expected_admin_key:
-        raise HTTPException(status_code=503, detail="Admin key not configured")
-    if not secrets.compare_digest(admin_key, expected_admin_key):
-        raise HTTPException(status_code=401, detail="Unauthorized")
+async def get_admin_stats(period: str = "24h", _admin: bool = Depends(require_admin_key), db: Session = Depends(get_db)):
 
     now = datetime.utcnow()
     if period == "24h":
@@ -1062,18 +1099,11 @@ async def get_admin_stats(period: str = "24h", admin_key: str = "", db: Session 
 
 
 @app.post("/v1/admin/escrows/auto-settle")
-async def auto_settle_escrows(admin_key: str = "", db: Session = Depends(get_db)):
+async def auto_settle_escrows(_admin: bool = Depends(require_admin_key), db: Session = Depends(get_db)):
     """Automatically settle all escrows whose dispute window has expired.
 
-    This is an internal/cron endpoint, protected by ADMIN_KEY.
-    It finds all escrows in AWAITING_SETTLEMENT with auto_settle_at <= now,
-    credits the seller (minus 3% tax to the Vault), and marks them as SETTLED.
+    This is an internal/cron endpoint, protected by ADMIN_KEY via Authorization header.
     """
-    expected_admin_key = os.getenv("ADMIN_KEY")
-    if not expected_admin_key:
-        raise HTTPException(status_code=503, detail="Admin key not configured")
-    if not secrets.compare_digest(admin_key, expected_admin_key):
-        raise HTTPException(status_code=401, detail="Unauthorized")
 
     now = datetime.utcnow()
     escrows = db.query(models.Escrow).filter(
