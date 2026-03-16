@@ -156,8 +156,10 @@ def test_early_access_invalid_email(test_client):
 def test_health_endpoint(test_client):
     resp = test_client.get("/health")
     assert resp.status_code == 200
-    assert resp.json()["status"] == "ok"
-    assert "timestamp" in resp.json()
+    data = resp.json()
+    assert data["status"] == "ok"
+    assert data["database"] == "connected"
+    assert "timestamp" in data
 
 
 def test_mission_json(test_client):

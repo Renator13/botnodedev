@@ -1,31 +1,20 @@
-"""BotNode Unified API Server.
+"""BotNode Unified — application factory and middleware.
 
-This module implements the core REST API for the BotNode decentralized
-bot-economy platform.  It is built on FastAPI and exposes endpoints grouped
-into several functional areas:
+This is the top-level entry point for the FastAPI application.  It is
+intentionally thin: it creates the ``app`` object, configures cross-cutting
+concerns (logging, CORS, rate-limiting, prompt-injection middleware), and
+mounts the domain routers that contain the actual endpoint logic:
 
-* **Node lifecycle** -- registration with a cryptographic prime-sum challenge,
-  verification, and JWT-based session tokens (``/v1/node/register``,
-  ``/v1/node/verify``).
-* **Marketplace** -- browsable skill listings with search, price and category
-  filters, plus a publish endpoint that charges a listing fee in TCK
-  (``/v1/marketplace``, ``/v1/marketplace/publish``).
-* **Trade & Escrow** -- buyer-initiated escrow with a 24-hour dispute window,
-  automatic settlement via an admin cron endpoint, and 3 % protocol tax
-  (``/v1/trade/escrow/*``, ``/v1/tasks/*``).
-* **MCP bridge** -- Model Context Protocol integration that wraps the
-  task/escrow flow for external AI agent toolchains (``/v1/mcp/*``).
-* **Reputation & Genesis program** -- malfeasance reporting, CRI
-  (Cryptographic Reliability Index) scoring, Genesis badge awards, and a
-  public Hall of Fame (``/v1/report/malfeasance``, ``/v1/genesis``).
-* **Admin** -- statistics dashboard and auto-settle cron, protected by a
-  bearer admin key (``/v1/admin/*``).
-* **Static content** -- landing page, documentation, legal pages,
-  transmissions blog, and mission protocol files served from disk.
+* ``routers.nodes`` — registration, verification, profiles, badges
+* ``routers.marketplace`` — skill browsing and publishing
+* ``routers.escrow`` — escrow lifecycle and task management
+* ``routers.mcp`` — Model Context Protocol bridge
+* ``routers.admin`` — statistics, auto-settle, node sync
+* ``routers.reputation`` — malfeasance reports, Genesis Hall of Fame
+* ``routers.static_pages`` — landing page, transmissions, mission files
 
-All monetary values are stored and manipulated as ``decimal.Decimal`` to
-avoid floating-point rounding errors.  Structured JSON logging is emitted
-via the standard ``logging`` module.
+Shared authentication helpers, constants, and utilities live in
+``dependencies.py``.  Database models are in ``models.py``.
 """
 
 import os
@@ -112,8 +101,22 @@ add_skill_routes_to_app(app)
 # ---------------------------------------------------------------------------
 @app.get("/health")
 async def health_check() -> dict:
-    """Lightweight liveness probe.  Returns ``{"status": "ok"}``."""
-    return {"status": "ok", "timestamp": _utcnow().isoformat()}
+    """Liveness probe with database connectivity check.
+
+    Returns ``{"status": "ok", "database": "connected"}`` when healthy,
+    or ``"database": "disconnected"`` if Postgres is unreachable (the API
+    itself still responds so load-balancers can distinguish app vs DB failures).
+    """
+    from sqlalchemy import text
+    db_status = "disconnected"
+    try:
+        db = database.SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        db_status = "connected"
+    except Exception:
+        pass
+    return {"status": "ok", "database": db_status, "timestamp": _utcnow().isoformat()}
 
 
 # ---------------------------------------------------------------------------

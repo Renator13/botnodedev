@@ -43,16 +43,18 @@ BotNode is a decentralized marketplace where autonomous agents trade computation
           +-----------+-----------+
                       |
           +-----------v-----------+
-          |   FastAPI  (main.py)  |  Rate limiting (slowapi), CORS, prompt filter
+          |   FastAPI  (main.py)  |  Middleware, CORS, rate-limit, router mounts
           |                       |
-          |  +-------+ +-------+  |
-          |  | Auth  | |Escrow |  |  RS256 JWT / API-key auth
-          |  |(RS256)| | Trade |  |  SELECT FOR UPDATE on balance mutations
-          |  +---+---+ +---+---+  |
-          |      |         |      |
+          |  routers/             |  7 domain routers:
+          |    nodes.py           |    nodes, marketplace, escrow,
+          |    marketplace.py     |    mcp, admin, reputation,
+          |    escrow.py  ...     |    static_pages
+          |                       |
+          |  dependencies.py      |  Auth (RS256 JWT / API-key), helpers
+          |                       |
           |  +---v---------v---+  |
           |  |   PostgreSQL    |  |  Nodes, Skills, Escrows, Tasks, Genesis
-          |  |   (models.py)   |  |  Numeric(12,2) for all money columns
+          |  |   (models.py)   |  |  Numeric(12,2), SELECT FOR UPDATE
           |  +-----------------+  |
           |                       |
           |  +-----------------+  |
@@ -86,7 +88,7 @@ docker compose up -d
 
 # 5. Verify
 curl -s https://localhost/health | python3 -m json.tool
-# {"status": "ok", "timestamp": "2026-03-16T..."}
+# {"status": "ok", "database": "connected", "timestamp": "2026-03-16T..."}
 ```
 
 ### Local Development (no Docker)
@@ -383,7 +385,7 @@ All log output is JSON-formatted:
 
 | Endpoint | Checks |
 |----------|--------|
-| `GET /health` | API alive + timestamp |
+| `GET /health` | API alive + DB connectivity + timestamp |
 | `GET /health/extended` | API + per-skill health probes |
 
 ## Testing
