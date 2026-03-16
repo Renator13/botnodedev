@@ -1,5 +1,9 @@
 from decimal import Decimal
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def _utcnow():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -20,7 +24,7 @@ def recalculate_cri(node: models.Node, db: Session) -> float:
     - Strike penalty (weight: -15 per strike)
     - Genesis badge bonus (weight: +10)
     """
-    now = datetime.utcnow()
+    now = _utcnow()
 
     # Settled TX count as seller
     settled_count = db.query(models.Escrow).filter(
@@ -82,7 +86,7 @@ def apply_cri_floor(node: models.Node) -> None:
 
     # Check if within 180 days window
     protection_period = timedelta(days=180)
-    if datetime.utcnow() <= (node.first_settled_tx_at + protection_period):
+    if _utcnow() <= (node.first_settled_tx_at + protection_period):
         # Apply floor only if not banned (strikes < 3)
         if node.strikes < 3 and node.reputation_score < 1.0:
             node.reputation_score = 1.0

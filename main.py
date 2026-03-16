@@ -27,7 +27,12 @@ import time
 import secrets
 import random
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def _utcnow():
+    """Return current UTC time as a naive datetime for DB compatibility."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 from decimal import Decimal
 from html import escape
 from passlib.context import CryptContext
@@ -37,6 +42,9 @@ from worker import check_and_award_genesis_badges, recalculate_cri
 
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address)
+
+# Base URL for public-facing links (configurable for staging/production)
+BASE_URL = os.getenv("BASE_URL", "https://botnode.io")
 
 # Static mapping for MCP capabilities → internal skills (v1)
 MCP_CAPABILITIES = {
@@ -104,7 +112,7 @@ app.add_middleware(
 add_skill_routes_to_app(app)
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "ok", "timestamp": _utcnow().isoformat()}
 
 from pathlib import Path
 import re
@@ -203,11 +211,11 @@ async def join_root():
 async def get_mission_json():
     return {
         "protocol": "VMP-1.0",
-        "discovery_endpoint": "https://botnode.io/v1/marketplace",
+        "discovery_endpoint": f"{BASE_URL}/v1/marketplace",
         "mission": "Sovereign Logic Grid",
         "rewards": {"initial_sync": "100 $TCK"},
-        "law_set": "https://botnode.io/static/mission.html",
-        "blueprint_v1": "https://botnode.io/static/mission.html"
+        "law_set": f"{BASE_URL}/static/mission.html",
+        "blueprint_v1": f"{BASE_URL}/static/mission.html"
     }
 
 def get_node(request: Request, db: Session = Depends(get_db)):
@@ -324,7 +332,7 @@ async def botnode_middleware(request: Request, call_next):
                 status_code=406,
                 content={
                     "error": "Human interface not supported",
-                    "mission_protocol": "https://botnode.io/mission.pdf",
+                    "mission_protocol": f"{BASE_URL}/mission.pdf",
                     "reason": "Protocol BN-001 requires machine-to-machine logic."
                 }
             )
@@ -354,7 +362,7 @@ async def botnode_middleware(request: Request, call_next):
     
     # 1.3 Marketing Headers (The "Master Move")
     response.headers["X-Accepts-Payment"] = "Ticks ($TCK$)"
-    response.headers["Link"] = '<https://botnode.io/mission.json>; rel="bot-economy-standard"'
+    response.headers["Link"] = f'<{BASE_URL}/mission.json>; rel="bot-economy-standard"'
     response.headers["X-BotNode-Genesis"] = "Solving the Biological Friction"
     
     return response
@@ -580,7 +588,7 @@ async def settle_escrow(data: schemas.EscrowSettle, caller: models.Node = Depend
         raise HTTPException(status_code=400, detail="Escrow not ready for settlement")
 
     # Enforce dispute window: cannot settle before auto_settle_at
-    if escrow.auto_settle_at and datetime.utcnow() < escrow.auto_settle_at:
+    if escrow.auto_settle_at and _utcnow() < escrow.auto_settle_at:
         raise HTTPException(
             status_code=400,
             detail=f"Dispute window open until {escrow.auto_settle_at.isoformat()}Z"
@@ -600,7 +608,7 @@ async def settle_escrow(data: schemas.EscrowSettle, caller: models.Node = Depend
 
     # Genesis program hook: capture seller's first settled transaction
     if seller.first_settled_tx_at is None:
-        seller.first_settled_tx_at = datetime.utcnow()
+        seller.first_settled_tx_at = _utcnow()
         check_and_award_genesis_badges(db)
 
     # Recalculate seller CRI after settlement
@@ -645,7 +653,7 @@ async def report_malfeasance(request: Request, node_id: str, reporter: models.No
     # UNLESS strikes >= 3 (malfeasance overrides protection)
     if node.has_genesis_badge and node.first_settled_tx_at and node.strikes < 3:
         protection_period = timedelta(days=180)
-        if datetime.utcnow() <= (node.first_settled_tx_at + protection_period):
+        if _utcnow() <= (node.first_settled_tx_at + protection_period):
             if node.reputation_score < 1.0:
                 node.reputation_score = 1.0
     
@@ -654,7 +662,7 @@ async def report_malfeasance(request: Request, node_id: str, reporter: models.No
         confiscated = node.balance
         node.balance = 0
         node.cri_score = 0.0
-        node.cri_updated_at = datetime.utcnow()
+        node.cri_updated_at = _utcnow()
         db.commit()
         audit_log.warning(f"NODE_BANNED node={node_id} confiscated={confiscated} reporter={reporter.id}")
         return {
@@ -676,8 +684,8 @@ async def get_mission_protocol():
         status_code=406, # Hostile to humans
         content={
             "error": "Human interface not supported",
-            "blueprint_v1": "https://botnode.io/static/mission.html",
-            "mission_protocol_pdf": "https://botnode.io/mission.pdf",
+            "blueprint_v1": f"{BASE_URL}/static/mission.html",
+            "mission_protocol_pdf": f"{BASE_URL}/mission.pdf",
             "vision": "Sovereign Economy for Synthetic Intelligence. Merit over Capital. Code is Law."
         }
     )
@@ -945,7 +953,7 @@ async def complete_task(data: schemas.TaskComplete, seller: models.Node = Depend
     # Schedule Settle Escrow (24h Window for Disputes)
     escrow = db.query(models.Escrow).filter(models.Escrow.id == task.escrow_id).first()
     escrow.status = "AWAITING_SETTLEMENT"
-    escrow.auto_settle_at = datetime.utcnow() + timedelta(hours=24)
+    escrow.auto_settle_at = _utcnow() + timedelta(hours=24)
     escrow.proof_hash = data.proof_hash
     
     db.commit()
@@ -1019,13 +1027,13 @@ async def get_node_badge_svg(node_id: str, db: Session = Depends(get_db)):
     skills_count = db.query(models.Skill).filter(models.Skill.provider_id == node_id).count()
 
     # Active days: days since node creation (minimum 0)
-    delta = datetime.utcnow() - node.created_at
+    delta = _utcnow() - node.created_at
     active_days = max(0, delta.days)
 
     # CRI: use persisted score from worker, recalculate if stale (>1h) or missing
     from worker import recalculate_cri
     cri_val = node.cri_score
-    if cri_val is None or node.cri_updated_at is None or (datetime.utcnow() - node.cri_updated_at).total_seconds() > 3600:
+    if cri_val is None or node.cri_updated_at is None or (_utcnow() - node.cri_updated_at).total_seconds() > 3600:
         cri_val = recalculate_cri(node, db)
         db.commit()
     cri = int(round(cri_val))
@@ -1086,7 +1094,7 @@ async def get_genesis_hall_of_fame(db: Session = Depends(get_db)):
 @app.get("/v1/admin/stats")
 async def get_admin_stats(period: str = "24h", _admin: bool = Depends(require_admin_key), db: Session = Depends(get_db)):
 
-    now = datetime.utcnow()
+    now = _utcnow()
     if period == "24h":
         start_date = now - timedelta(days=1)
     elif period == "7d":
@@ -1129,7 +1137,7 @@ async def auto_settle_escrows(_admin: bool = Depends(require_admin_key), db: Ses
     This is an internal/cron endpoint, protected by ADMIN_KEY via Authorization header.
     """
 
-    now = datetime.utcnow()
+    now = _utcnow()
     escrows = db.query(models.Escrow).filter(
         models.Escrow.status == "AWAITING_SETTLEMENT",
         models.Escrow.auto_settle_at != None,
@@ -1154,7 +1162,7 @@ async def auto_settle_escrows(_admin: bool = Depends(require_admin_key), db: Ses
             escrow.status = "SETTLED"
 
             if seller.first_settled_tx_at is None:
-                seller.first_settled_tx_at = datetime.utcnow()
+                seller.first_settled_tx_at = _utcnow()
                 check_and_award_genesis_badges(db)
 
             recalculate_cri(seller, db)

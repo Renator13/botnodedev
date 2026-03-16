@@ -1,4 +1,5 @@
 import datetime as dt
+from datetime import timezone
 import jwt
 from .jwt_keys import BOTNODE_JWT_PRIVATE_KEY, BOTNODE_JWT_PUBLIC_KEY
 
@@ -10,7 +11,7 @@ def issue_access_token(node_id: str, role: str) -> str:
     """
     Issues an asymmetrically signed RS256 token.
     """
-    now = dt.datetime.utcnow()
+    now = dt.datetime.now(timezone.utc)
     payload = {
         "sub": node_id,
         "role": role,

@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Any
 from fastapi import APIRouter, HTTPException, Depends, Header
 from sqlalchemy.orm import Session
 import httpx
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Router para endpoints de skills
@@ -186,7 +186,7 @@ async def list_skills(category: Optional[str] = None, available_only: bool = Fal
         "skills": skills_list,
         "count": len(skills_list),
         "categories": list(SKILL_CATEGORIES.keys()),
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 @skills_router.get("/{skill_id}")
@@ -216,7 +216,7 @@ async def get_skill_health(skill_id: str):
         "skill_name": skill["name"],
         "healthy": is_healthy,
         "endpoint": skill["endpoint"],
-        "checked_at": datetime.utcnow().isoformat()
+        "checked_at": datetime.now(timezone.utc).isoformat()
     }
 
 async def verify_internal_api_key(x_internal_api_key: str = Header(None)):
@@ -260,7 +260,7 @@ async def execute_skill(skill_id: str, input_data: dict):
                         "skill_id": skill_id,
                         "skill_name": skill["name"],
                         "result": response.json(),
-                        "executed_at": datetime.utcnow().isoformat(),
+                        "executed_at": datetime.now(timezone.utc).isoformat(),
                         "price_tck": skill["price_tck"],
                         "attempts": attempt,
                     }
@@ -273,7 +273,7 @@ async def execute_skill(skill_id: str, input_data: dict):
                         "skill_id": skill_id,
                         "error": f"Skill returned status {response.status_code}",
                         "details": response.text,
-                        "executed_at": datetime.utcnow().isoformat(),
+                        "executed_at": datetime.now(timezone.utc).isoformat(),
                         "attempts": attempt,
                     }
 
@@ -313,7 +313,7 @@ async def skills_health_summary():
         "healthy_skills": healthy_count,
         "health_percentage": (healthy_count / total_count * 100) if total_count > 0 else 0,
         "health_status": health_status,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 # Inicializar registro al importar
@@ -329,7 +329,7 @@ def add_skill_routes_to_app(app):
     @app.get("/health/extended")
     async def extended_health():
         """Health check extendido con skills"""
-        base_health = {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+        base_health = {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
         
         # Verificar skills
         skills_health = await skills_health_summary()
