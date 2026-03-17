@@ -230,6 +230,61 @@ def resolve_dispute(
         raise HTTPException(status_code=400, detail="resolution must be 'refund_buyer' or 'release_to_seller'")
 
 
+@router.post("/v1/admin/bounties/expire")
+def expire_bounties(_admin: bool = Depends(require_admin_key), db: Session = Depends(get_db)) -> dict:
+    """Expire open bounties whose deadline has passed and refund creators.
+
+    This is an internal/cron endpoint, protected by ADMIN_KEY via Authorization header.
+    Finds all open bounties with a deadline_at in the past, refunds the creator,
+    and rejects all pending submissions.
+    """
+    now = _utcnow()
+    bounties = db.query(models.Bounty).filter(
+        models.Bounty.status == "open",
+        models.Bounty.deadline_at != None,
+        models.Bounty.deadline_at <= now,
+    ).all()
+
+    expired = 0
+    failed = 0
+
+    for bounty in bounties:
+        try:
+            creator = db.query(models.Node).filter(models.Node.id == bounty.creator_node_id).first()
+            if not creator:
+                failed += 1
+                continue
+
+            escrow_ref = bounty.escrow_reference or ("ESCROW:BOUNTY:" + bounty.id)
+            record_transfer(db, escrow_ref, creator.id, bounty.reward_tck, "BOUNTY_REFUND", bounty.id, to_node=creator)
+
+            bounty.status = "expired"
+            bounty.cancelled_at = now
+
+            # Reject all pending submissions
+            pending_subs = db.query(models.BountySubmission).filter(
+                models.BountySubmission.bounty_id == bounty.id,
+                models.BountySubmission.status == "pending",
+            ).all()
+            for s in pending_subs:
+                s.status = "rejected"
+                s.reviewed_at = now
+
+            expired += 1
+            db.commit()
+        except (sqlalchemy.exc.SQLAlchemyError, ValueError) as e:
+            db.rollback()
+            failed += 1
+            logger.error(f"Bounty expire failed for {bounty.id}: {e}")
+
+    return {
+        "status": "OK",
+        "expired": expired,
+        "failed": failed,
+        "timestamp": now.isoformat(),
+    }
+
+
 @router.get("/v1/admin/transactions")
 def get_transactions(
     limit: int = 50,

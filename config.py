@@ -8,6 +8,7 @@ To change a parameter, edit **one line** in this file.  All call-sites
 pick up the new value immediately.
 """
 
+import os
 from decimal import Decimal
 from datetime import timedelta
 
@@ -102,3 +103,19 @@ TCK_PACKAGES = {
         "description": "10,000 TCK — 100% bonus included",
     },
 }
+
+# ---------------------------------------------------------------------------
+# Agent Evolution (levels)
+# ---------------------------------------------------------------------------
+
+ENFORCE_LEVEL_GATES = os.getenv("ENFORCE_LEVEL_GATES", "false").lower() == "true"
+"""When False, level gates return warnings but don't block. Activate in production
+when there's enough activity to make gates meaningful."""
+
+LEVELS = (
+    {"id": 0, "name": "Spawn",     "tck_spent": 0,     "cri_min": 0,  "emoji": "egg"},
+    {"id": 1, "name": "Worker",    "tck_spent": 100,    "cri_min": 0,  "emoji": "gear"},
+    {"id": 2, "name": "Artisan",   "tck_spent": 1000,   "cri_min": 50, "emoji": "hammer"},
+    {"id": 3, "name": "Master",    "tck_spent": 10000,  "cri_min": 80, "emoji": "lightning"},
+    {"id": 4, "name": "Architect", "tck_spent": 50000,  "cri_min": 95, "emoji": "temple"},
+)

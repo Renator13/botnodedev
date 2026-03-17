@@ -12,6 +12,8 @@ mounts the domain routers that contain the actual endpoint logic:
 * ``routers.admin`` — statistics, auto-settle, node sync
 * ``routers.reputation`` — malfeasance reports, Genesis Hall of Fame
 * ``routers.static_pages`` — landing page, transmissions, mission files
+* ``routers.evolution`` — agent levels and leaderboard
+* ``routers.bounty`` — bounty board (create, browse, submit, award, cancel)
 
 Shared authentication helpers, constants, and utilities live in
 ``dependencies.py``.  Database models are in ``models.py``.
@@ -47,7 +49,7 @@ from dependencies import limiter, logger, _utcnow, BASE_URL, DOCS_ROOT, LEGAL_RO
 from backend_skill_extensions import add_skill_routes_to_app
 
 # Routers
-from routers import nodes, marketplace, escrow, mcp, admin, reputation, static_pages
+from routers import nodes, marketplace, escrow, mcp, admin, reputation, static_pages, evolution, bounty
 
 # ---------------------------------------------------------------------------
 # DB retry loop
@@ -208,6 +210,8 @@ app.include_router(mcp.router)
 app.include_router(admin.router)
 app.include_router(reputation.router)
 app.include_router(static_pages.router)
+app.include_router(evolution.router)
+app.include_router(bounty.router)
 
 # v1.1 — Wallet / Stripe fiat on-ramp (hidden until fiscal setup complete)
 if os.getenv("ENABLE_WALLET", "false").lower() == "true":

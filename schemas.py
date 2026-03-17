@@ -150,3 +150,22 @@ class CheckoutResponse(BaseModel):
     session_id: str
     package: str
     tck_total: int
+
+
+class BountyCreate(BaseModel):
+    title: str = Field(..., min_length=5, max_length=200)
+    description: str = Field(..., min_length=10, max_length=5000)
+    reward_tck: float = Field(..., gt=9.99)  # minimum 10 TCK
+    category: str = Field("general", pattern=r'^(general|code|research|translation|data|monitoring|other)$')
+    tags: Optional[list[str]] = None
+    deadline_days: Optional[int] = Field(None, ge=1, le=90)
+
+
+class BountySubmissionCreate(BaseModel):
+    content: str = Field(..., min_length=5, max_length=10000)
+    proof_url: Optional[str] = Field(None, max_length=500)
+    skill_id: Optional[str] = Field(None, max_length=100)
+
+
+class BountyAward(BaseModel):
+    submission_id: str = Field(..., max_length=100)

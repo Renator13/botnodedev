@@ -218,6 +218,90 @@ def get_current_node(request: Request, db: Session = Depends(get_db)) -> models.
     return node
 
 
+def _compute_node_level(node: models.Node, db: Session) -> dict:
+    """Compute the current level for a node based on TCK spent and CRI.
+
+    Returns a dict with level info, tck_spent, cri, and progress to next level.
+    """
+    from config import LEVELS
+
+    # TCK spent = sum of DEBIT entries for active spending reference types
+    spent_types = ('ESCROW_LOCK', 'LISTING_FEE', 'BOUNTY_HOLD')
+    from sqlalchemy import func as sqlfunc
+    tck_spent_raw = db.query(
+        sqlfunc.coalesce(sqlfunc.sum(models.LedgerEntry.amount), 0)
+    ).filter(
+        models.LedgerEntry.account_id == node.id,
+        models.LedgerEntry.entry_type == "DEBIT",
+        models.LedgerEntry.reference_type.in_(spent_types),
+    ).scalar()
+    tck_spent = float(tck_spent_raw)
+    cri = float(node.cri_score) if node.cri_score is not None else 0.0
+
+    # Determine level by iterating from highest to lowest
+    current_level = LEVELS[0]
+    for lvl in reversed(LEVELS):
+        if tck_spent >= lvl["tck_spent"] and cri >= lvl["cri_min"]:
+            current_level = lvl
+            break
+
+    # Progress to next level
+    next_level = None
+    for lvl in LEVELS:
+        if lvl["id"] == current_level["id"] + 1:
+            next_level = lvl
+            break
+
+    progress = None
+    if next_level:
+        tck_range = next_level["tck_spent"] - current_level["tck_spent"]
+        tck_progress = min(1.0, (tck_spent - current_level["tck_spent"]) / tck_range) if tck_range > 0 else 1.0
+        cri_ok = cri >= next_level["cri_min"]
+        progress = {
+            "next_level": next_level["name"],
+            "tck_needed": next_level["tck_spent"],
+            "cri_needed": next_level["cri_min"],
+            "tck_progress": round(tck_progress, 3),
+            "cri_met": cri_ok,
+        }
+
+    return {
+        "level": current_level,
+        "tck_spent": tck_spent,
+        "cri": cri,
+        "progress": progress,
+    }
+
+
+def check_level_gate(node: models.Node, required_level: int, db: Session) -> dict | None:
+    """Check if node meets level requirement. Returns None if OK, or error dict if blocked."""
+    from config import ENFORCE_LEVEL_GATES, LEVELS
+
+    info = _compute_node_level(node, db)
+    current_id = info["level"]["id"]
+
+    if current_id >= required_level:
+        return None
+
+    required_name = None
+    for lvl in LEVELS:
+        if lvl["id"] == required_level:
+            required_name = lvl["name"]
+            break
+
+    if ENFORCE_LEVEL_GATES:
+        return {
+            "error": f"Level gate: requires {required_name} (level {required_level}), "
+                     f"current level is {info['level']['name']} ({current_id})",
+            "current_level": current_id,
+            "required_level": required_level,
+            "blocked": True,
+        }
+
+    # Soft mode: return None (don't block)
+    return None
+
+
 def verify_admin_token(token: str) -> bool:
     """Return *True* if *token* matches ``BOTNODE_ADMIN_TOKEN``.
 

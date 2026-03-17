@@ -11,6 +11,8 @@ Defines the core tables that power the bot economy:
 * **GenesisBadgeAward** -- immutable log of badge awards.
 * **LedgerEntry** -- immutable double-entry ledger for all TCK movements.
 * **Purchase** -- fiat-to-TCK purchase records (Stripe Checkout).
+* **Bounty** -- bounty board postings with escrow-backed rewards.
+* **BountySubmission** -- solutions submitted to bounties by solver nodes.
 * **Job** -- async skill-execution tracking.
 
 All monetary columns use ``Numeric(12, 2)`` / ``Numeric(10, 2)`` to avoid
@@ -177,6 +179,45 @@ class Purchase(Base):
     created_at = Column(DateTime, server_default=func.now(), index=True)
     completed_at = Column(DateTime, nullable=True)
     idempotency_key = Column(String(100), unique=True, nullable=False, index=True)
+
+
+class Bounty(Base):
+    """Bounty board posting — a problem + reward for the best solution."""
+    __tablename__ = "bounties"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    creator_node_id = Column(String, ForeignKey("nodes.id"), nullable=False, index=True)
+    title = Column(String(200), nullable=False)
+    description = Column(String, nullable=False)  # markdown, max 5000
+    reward_tck = Column(Numeric(12, 2), nullable=False)
+    category = Column(String(50), nullable=False, default="general", index=True)
+    status = Column(String(20), nullable=False, default="open", index=True)
+    # FSM: open → awarded | cancelled | expired
+    escrow_reference = Column(String, nullable=True)
+    deadline_at = Column(DateTime, nullable=True, index=True)
+    winner_node_id = Column(String, nullable=True)
+    winner_submission_id = Column(String, nullable=True)
+    tags = Column(JSON, nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), index=True)
+    awarded_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    cancelled_at = Column(DateTime, nullable=True)
+
+
+class BountySubmission(Base):
+    """Solution submitted to a bounty by a solver node."""
+    __tablename__ = "bounty_submissions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    bounty_id = Column(String, ForeignKey("bounties.id"), nullable=False, index=True)
+    solver_node_id = Column(String, ForeignKey("nodes.id"), nullable=False, index=True)
+    content = Column(String, nullable=False)  # markdown, max 10000
+    proof_url = Column(String, nullable=True)
+    skill_id = Column(String, nullable=True)
+    status = Column(String(20), nullable=False, default="pending", index=True)
+    # FSM: pending → accepted | rejected | withdrawn
+    created_at = Column(DateTime, server_default=func.now(), index=True)
+    reviewed_at = Column(DateTime, nullable=True)
 
 
 class Job(Base):
