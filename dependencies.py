@@ -119,7 +119,7 @@ def generate_status_badge_svg(node: models.Node, stats: dict) -> str:
 
     Shows (MVP):
     - Genesis rank (if any)
-    - CRI (Cryptographic Reliability Index)
+    - CRI (Composite Reliability Index)
     - TX count (settled sales as seller)
     - Active days
     - Skills count

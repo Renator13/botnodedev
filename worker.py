@@ -1,6 +1,6 @@
 """Background worker functions for BotNode.
 
-Contains CRI (Cryptographic Reliability Index) recalculation, Genesis badge
+Contains CRI (Composite Reliability Index) recalculation, Genesis badge
 awarding logic, and related helper utilities that run outside the request
 cycle.
 """
@@ -27,29 +27,95 @@ def _utcnow():
 
 
 def recalculate_cri(node: models.Node, db: Session) -> float:
-    """Recalculate CRI for a node based on real on-chain activity.
+    """Recalculate CRI (Composite Reliability Index) for a node.
 
-    Factors (0-100 scale):
-    - Settled transactions as seller (weight: 30) — max at 20 tx
-    - Account age in days (weight: 15) — max at 90 days
-    - Dispute rate as seller (weight: -25) — disputes / total tasks
-    - Strike penalty (weight: -15 per strike)
-    - Genesis badge bonus (weight: +10)
+    The CRI is a 0-100 score computed from on-chain activity.  It uses
+    logarithmic scaling (diminishing returns) and Sybil-resistant factors
+    (counterparty diversity, concentration penalty) to make gaming
+    expensive.
+
+    **Positive factors** (max 100 combined):
+
+    =================  ======  ==========================================
+    Factor             Weight  Rationale
+    =================  ======  ==========================================
+    Base               30      Every active node starts credible
+    Transaction score  20      log2(settled+1), caps at ~64 TX
+    Diversity score    15      Unique counterparties / total TX ratio
+    Volume score       10      log10(total_tck_settled+1), caps at 10k
+    Age score          10      log2(days+1), caps at ~256 days
+    Buyer activity      5      Has the node also bought? (not just sold)
+    Genesis bonus      10      Genesis badge holders
+    =================  ======  ==========================================
+
+    **Negative factors** (uncapped):
+
+    ========================  ==========================================
+    Factor                    Rationale
+    ========================  ==========================================
+    Dispute penalty (0-25)    disputes / total_tasks as seller
+    Concentration penalty     >50% trades with same node = Sybil signal
+    Strike penalty (15 each)  Hard penalty per malfeasance report
+    ========================  ==========================================
+
+    A Sybil attacker creating 10 nodes and ring-trading between them
+    gets penalized by: low diversity score (few unique counterparties),
+    high concentration penalty (>50% with same nodes), and logarithmic
+    TX scaling (100 fake trades ≈ same score as 7 real ones).
     """
+    import math
     now = _utcnow()
 
-    # Settled TX count as seller
-    settled_count = db.query(models.Escrow).filter(
+    # ── Positive: Transaction score (logarithmic, caps ~64 TX) ───────
+    settled_as_seller = db.query(models.Escrow).filter(
         models.Escrow.seller_id == node.id,
         models.Escrow.status == "SETTLED",
     ).count()
-    tx_score = min(30.0, (settled_count / 20.0) * 30.0)
+    settled_as_buyer = db.query(models.Escrow).filter(
+        models.Escrow.buyer_id == node.id,
+        models.Escrow.status == "SETTLED",
+    ).count()
+    total_settled = settled_as_seller + settled_as_buyer
+    tx_score = min(20.0, math.log2(total_settled + 1) * 3.33)
 
-    # Account age
+    # ── Positive: Counterparty diversity (Sybil-resistant) ───────────
+    # Unique nodes this node has traded with (as buyer or seller)
+    seller_counterparties = db.query(models.Escrow.buyer_id).filter(
+        models.Escrow.seller_id == node.id,
+        models.Escrow.status == "SETTLED",
+    ).distinct().count()
+    buyer_counterparties = db.query(models.Escrow.seller_id).filter(
+        models.Escrow.buyer_id == node.id,
+        models.Escrow.status == "SETTLED",
+    ).distinct().count()
+    unique_counterparties = seller_counterparties + buyer_counterparties
+    if total_settled > 0:
+        diversity_ratio = min(1.0, unique_counterparties / max(1, total_settled))
+        diversity_score = diversity_ratio * 15.0
+    else:
+        diversity_score = 0.0
+
+    # ── Positive: Volume score (logarithmic, caps at ~10k TCK) ───────
+    from sqlalchemy import func as sqlfunc
+    total_volume = db.query(
+        sqlfunc.coalesce(sqlfunc.sum(models.Escrow.amount), 0)
+    ).filter(
+        (models.Escrow.seller_id == node.id) | (models.Escrow.buyer_id == node.id),
+        models.Escrow.status == "SETTLED",
+    ).scalar()
+    volume_score = min(10.0, math.log10(float(total_volume) + 1) * 2.5)
+
+    # ── Positive: Account age (logarithmic, caps at ~256 days) ───────
     age_days = max(0, (now - node.created_at).days) if node.created_at else 0
-    age_score = min(15.0, (age_days / 90.0) * 15.0)
+    age_score = min(10.0, math.log2(age_days + 1) * 1.25)
 
-    # Dispute rate as seller
+    # ── Positive: Buyer activity (not just seller) ───────────────────
+    buyer_score = 5.0 if settled_as_buyer > 0 else 0.0
+
+    # ── Positive: Genesis bonus ──────────────────────────────────────
+    genesis_bonus = GENESIS_CRI_FLOOR * 10.0 if node.has_genesis_badge else 0.0
+
+    # ── Negative: Dispute rate as seller ─────────────────────────────
     total_tasks_as_seller = db.query(models.Task).filter(
         models.Task.seller_id == node.id,
         models.Task.status.in_(["COMPLETED", "DISPUTED"]),
@@ -58,19 +124,52 @@ def recalculate_cri(node: models.Node, db: Session) -> float:
         models.Task.seller_id == node.id,
         models.Task.status == "DISPUTED",
     ).count()
-    if total_tasks_as_seller > 0:
-        dispute_penalty = (disputed_tasks / total_tasks_as_seller) * 25.0
-    else:
-        dispute_penalty = 0.0
+    dispute_penalty = (disputed_tasks / total_tasks_as_seller * 25.0) if total_tasks_as_seller > 0 else 0.0
 
-    # Strike penalty
+    # ── Negative: Concentration penalty (Sybil detection) ────────────
+    # If >50% of trades are with the same counterparty = suspicious
+    concentration_penalty = 0.0
+    if total_settled >= 5:
+        # Find the most frequent counterparty
+        from sqlalchemy import case, literal_column
+        top_seller = db.query(
+            models.Escrow.seller_id, sqlfunc.count().label("cnt")
+        ).filter(
+            models.Escrow.buyer_id == node.id,
+            models.Escrow.status == "SETTLED",
+        ).group_by(models.Escrow.seller_id).order_by(sqlfunc.count().desc()).first()
+
+        top_buyer = db.query(
+            models.Escrow.buyer_id, sqlfunc.count().label("cnt")
+        ).filter(
+            models.Escrow.seller_id == node.id,
+            models.Escrow.status == "SETTLED",
+        ).group_by(models.Escrow.buyer_id).order_by(sqlfunc.count().desc()).first()
+
+        max_with_single = max(
+            top_seller[1] if top_seller else 0,
+            top_buyer[1] if top_buyer else 0,
+        )
+        concentration_ratio = max_with_single / total_settled
+        if concentration_ratio > 0.5:
+            concentration_penalty = (concentration_ratio - 0.5) * 20.0  # up to 10 points
+
+    # ── Negative: Strike penalty ─────────────────────────────────────
     strike_penalty = node.strikes * 15.0
 
-    # Genesis bonus
-    genesis_bonus = 10.0 if node.has_genesis_badge else 0.0
-
-    # Base score starts at 50 (neutral)
-    raw = 50.0 + tx_score + age_score - dispute_penalty - strike_penalty + genesis_bonus
+    # ── Final score ──────────────────────────────────────────────────
+    raw = (
+        30.0                    # base
+        + tx_score              # 0-20 (log)
+        + diversity_score       # 0-15 (Sybil-resistant)
+        + volume_score          # 0-10 (log)
+        + age_score             # 0-10 (log)
+        + buyer_score           # 0-5
+        + genesis_bonus         # 0-10
+        - dispute_penalty       # 0-25
+        - concentration_penalty # 0-10
+        - strike_penalty        # 15 per strike
+    )
     cri = max(0.0, min(100.0, round(raw, 1)))
 
     # Apply Genesis CRI floor

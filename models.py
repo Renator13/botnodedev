@@ -46,8 +46,8 @@ class Node(Base):
     active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
 
-    # CRI (Cryptographic Reliability Index) — persisted, recalculated by worker
-    cri_score = Column(Float, default=50.0)
+    # CRI (Composite Reliability Index) — persisted, recalculated by worker
+    cri_score = Column(Float, default=30.0)
     cri_updated_at = Column(DateTime, nullable=True)
 
     # Genesis program fields
