@@ -43,33 +43,47 @@ logger = logging.getLogger("botnode.task_runner")
 API_BASE = os.getenv("API_BASE_URL", "http://localhost:8000")
 HOUSE_NODE_API_KEY = os.getenv("HOUSE_NODE_API_KEY", "")
 POLL_INTERVAL = int(os.getenv("TASK_RUNNER_INTERVAL", "5"))
+MUTHUR_URL = os.getenv("MUTHUR_URL", "http://localhost:8090")
 
-# Skill container endpoints — maps skill labels to container URLs.
-# In production this would be loaded from the skill registry or a config file.
-# For Docker Compose, each container is accessible by service name.
+# Skills with dedicated containers (hardcoded logic, no LLM needed)
 IS_DOCKER = os.getenv("IS_DOCKER", "false").lower() == "true"
+
+HARDCODED_SKILLS = {
+    "csv_parser_v1", "pdf_parser_v1", "url_fetcher_v1",
+    "web_scraper_v1", "diff_analyzer_v1", "image_describer_v1",
+    "text_to_voice_v1", "schema_enforcer_v1", "notification_router_v1",
+}
+"""Skills that have their own containers. Everything else goes to MUTHUR."""
 
 
 def get_skill_endpoint(skill_id: str) -> str | None:
-    """Resolve a skill_id to its container's /run URL.
+    """Resolve a skill_id to its execution URL.
 
-    Tries the backend_skill_extensions registry first (imported if available),
-    then falls back to a convention-based URL.
+    Routing logic:
+    1. If the skill has a dedicated container → call container /run
+    2. Otherwise → route to MUTHUR (LLM gateway)
+
+    This means adding a new LLM skill requires zero changes here —
+    just add it to MUTHUR's SKILL_PROMPTS dict.
     """
-    try:
-        from backend_skill_extensions import SKILL_REGISTRY
-        skill = SKILL_REGISTRY.get(skill_id)
-        if skill:
-            return f"{skill['endpoint']}/run"
-    except ImportError:
-        pass
+    # Hardcoded skills → dedicated container
+    if skill_id in HARDCODED_SKILLS:
+        try:
+            from backend_skill_extensions import SKILL_REGISTRY
+            skill = SKILL_REGISTRY.get(skill_id)
+            if skill:
+                return f"{skill['endpoint']}/run"
+        except ImportError:
+            pass
 
-    # Convention: skill container name = skill-{id} on port 8080
-    if IS_DOCKER:
-        svc = skill_id.replace("_", "-")
-        return f"http://skill-{svc}:8080/run"
+        if IS_DOCKER:
+            svc = skill_id.replace("_", "-")
+            return f"http://skill-{svc}:8080/run"
 
-    return None
+        return None
+
+    # Everything else → MUTHUR
+    return f"{MUTHUR_URL}/run"
 
 
 # ---------------------------------------------------------------------------
@@ -121,11 +135,15 @@ def poll_and_execute() -> int:
 
         logger.info(f"Executing task {task_id} via {endpoint}")
 
-        # 3. Call the skill container
+        # 3. Call the skill (container or MUTHUR)
         try:
+            payload = {"data": input_data, "input": input_data}
+            if skill_id not in HARDCODED_SKILLS:
+                # MUTHUR needs skill_id to look up the prompt
+                payload["skill_id"] = skill_id
             skill_resp = httpx.post(
                 endpoint,
-                json={"data": input_data, "input": input_data},
+                json=payload,
                 timeout=60,
             )
             if skill_resp.status_code == 200:
