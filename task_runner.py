@@ -127,7 +127,16 @@ def poll_and_execute() -> int:
             output_data = {"error": f"Skill execution failed: {str(e)}"}
             logger.error(f"Error executing skill {skill_id}: {e}")
 
-        # 4. Complete the task via API
+        # 4. Check if skill succeeded — only complete on success
+        is_success = output_data.get("ok", True) if isinstance(output_data, dict) else True
+        has_error = "error" in output_data if isinstance(output_data, dict) else False
+
+        if has_error and not is_success:
+            # Skill failed — leave task OPEN, escrow auto-refunds after 72h
+            logger.warning(f"Task {task_id} skill failed: {output_data.get('error', '?')} — leaving OPEN for auto-refund")
+            continue
+
+        # 5. Complete the task via API
         proof = hashlib.sha256(json.dumps(output_data, sort_keys=True).encode()).hexdigest()
 
         try:

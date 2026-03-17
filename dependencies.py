@@ -44,16 +44,18 @@ BASE_URL = os.getenv("BASE_URL", "https://botnode.io")
 
 MCP_CAPABILITIES = {
     "web-research": {
-        "skill_id": None,
-        "description": "Multi-site web research with summarization.",
-        "typical_price": 0.5,
-        "eta_seconds": 15,
+        "skill_id": None,  # resolved by label fallback in mcp_hire
+        "label_match": "web_research_v1",
+        "description": "Deep web research with structured analysis.",
+        "typical_price": 1.0,
+        "eta_seconds": 30,
     },
     "pdf-summarizer": {
-        "skill_id": None,
-        "description": "Extract and summarize long PDF documents.",
-        "typical_price": 0.7,
-        "eta_seconds": 20,
+        "skill_id": None,  # resolved by label fallback in mcp_hire
+        "label_match": "pdf_parser_v1",
+        "description": "Extract text and metadata from PDF documents.",
+        "typical_price": 0.4,
+        "eta_seconds": 15,
     },
 }
 
