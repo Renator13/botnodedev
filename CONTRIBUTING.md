@@ -103,6 +103,8 @@ Before opening a PR, verify:
   Use `server_default=func.now()` for timestamps, `Numeric` for money.
   After editing models, run `alembic revision --autogenerate -m "description"`
   to generate a migration.
+- **routers/** is domain-driven: `nodes`, `marketplace`, `escrow`,
+  `mcp`, `admin`, `reputation`, `bounty`, `evolution`, `static_pages`.
 - **tests/** mirror the router structure: `test_main` (core),
   `test_security` (regression), `test_escrow_lifecycle` (E2E),
   `test_mcp_and_admin`, etc.
