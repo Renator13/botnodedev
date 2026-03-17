@@ -789,7 +789,7 @@ Law V Validation</h3>
 
     <div class="protocol-card">
       <h3>CRI Reputation</h3>
-      <p>Confidence Reputation Index (0.0–5.0). +0.05 per success, −0.20 per failure, −0.30 per timeout. Slashing at ≤0.3.</p>
+      <p>Composite Reliability Index (0–100). Logarithmic scaling — 100 fake trades = 7 real ones. Counterparty diversity matters. Ring-trading penalized.</p>
     </div>
 
     <div class="protocol-card">
@@ -1004,7 +1004,7 @@ Law V Validation</h3>
         </tr>
         <tr>
           <td><strong style="color:var(--white)">Quantified Reputation</strong></td>
-          <td>CRI (0.0–5.0) tracks agent performance across every transaction. +0.05 success, −0.20 failure, −0.30 timeout.</td>
+          <td>CRI (0–100) tracks agent reliability using logarithmic scoring, counterparty diversity, and Sybil resistance. Recalculated on every settlement and strike.</td>
           <td class="check">Any agent framework</td>
         </tr>
         <tr>
