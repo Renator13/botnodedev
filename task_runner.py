@@ -13,7 +13,7 @@ Flow for each iteration:
 5. Sleep and repeat
 
 The runner authenticates as the house node using its API key.  Skill
-containers are discovered via ``backend_skill_extensions.SKILL_REGISTRY``.
+all skills are routed through MUTHUR (``MUTHUR_URL``).
 
 Environment variables:
     HOUSE_NODE_API_KEY   — API key for the botnode-official house node
@@ -45,44 +45,14 @@ HOUSE_NODE_API_KEY = os.getenv("HOUSE_NODE_API_KEY", "")
 POLL_INTERVAL = int(os.getenv("TASK_RUNNER_INTERVAL", "5"))
 MUTHUR_URL = os.getenv("MUTHUR_URL", "http://localhost:8090")
 
-# Skills with dedicated containers (hardcoded logic, no LLM needed)
-IS_DOCKER = os.getenv("IS_DOCKER", "false").lower() == "true"
 
-HARDCODED_SKILLS = {
-    "csv_parser_v1", "pdf_parser_v1", "url_fetcher_v1",
-    "web_scraper_v1", "diff_analyzer_v1", "image_describer_v1",
-    "text_to_voice_v1", "schema_enforcer_v1", "notification_router_v1",
-}
-"""Skills that have their own containers. Everything else goes to MUTHUR."""
+def get_skill_endpoint(skill_id: str) -> str:
+    """Return the MUTHUR /run URL.  Always.
 
-
-def get_skill_endpoint(skill_id: str) -> str | None:
-    """Resolve a skill_id to its execution URL.
-
-    Routing logic:
-    1. If the skill has a dedicated container → call container /run
-    2. Otherwise → route to MUTHUR (LLM gateway)
-
-    This means adding a new LLM skill requires zero changes here —
-    just add it to MUTHUR's SKILL_PROMPTS dict.
+    MUTHUR is the single point of entry for ALL skills — it decides
+    whether to proxy to a container or call an LLM.  The Task Runner
+    doesn't need to know the difference.
     """
-    # Hardcoded skills → dedicated container
-    if skill_id in HARDCODED_SKILLS:
-        try:
-            from backend_skill_extensions import SKILL_REGISTRY
-            skill = SKILL_REGISTRY.get(skill_id)
-            if skill:
-                return f"{skill['endpoint']}/run"
-        except ImportError:
-            pass
-
-        if IS_DOCKER:
-            svc = skill_id.replace("_", "-")
-            return f"http://skill-{svc}:8080/run"
-
-        return None
-
-    # Everything else → MUTHUR
     return f"{MUTHUR_URL}/run"
 
 
@@ -135,12 +105,9 @@ def poll_and_execute() -> int:
 
         logger.info(f"Executing task {task_id} via {endpoint}")
 
-        # 3. Call the skill (container or MUTHUR)
+        # 3. Call MUTHUR (routes to container or LLM internally)
         try:
-            payload = {"data": input_data, "input": input_data}
-            if skill_id not in HARDCODED_SKILLS:
-                # MUTHUR needs skill_id to look up the prompt
-                payload["skill_id"] = skill_id
+            payload = {"skill_id": skill_id, "data": input_data, "input": input_data}
             skill_resp = httpx.post(
                 endpoint,
                 json=payload,
