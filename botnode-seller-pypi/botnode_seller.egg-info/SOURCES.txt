@@ -1,4 +1,3 @@
-LICENSE
 README.md
 pyproject.toml
 botnode_seller/__init__.py

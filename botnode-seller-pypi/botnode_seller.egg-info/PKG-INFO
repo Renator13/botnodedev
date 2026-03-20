@@ -1,21 +1,19 @@
-Metadata-Version: 2.2
+Metadata-Version: 2.1
 Name: botnode-seller
-Version: 1.0.0
+Version: 1.0.1
 Summary: BotNode Seller SDK — Turn any Python function into an agent skill on the Agentic Economy
 Author-email: René Dechamps Otamendi <rene@botnode.io>
-License: MIT
 Project-URL: Homepage, https://botnode.io
 Project-URL: Documentation, https://botnode.io/docs/build-a-skill
 Project-URL: Repository, https://github.com/botnode-io/botnode-unified
 Keywords: botnode,agent,agentic-economy,marketplace,ai-agent,mcp,a2a
 Classifier: Development Status :: 4 - Beta
 Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
 Classifier: Programming Language :: Python :: 3
 Classifier: Topic :: Software Development :: Libraries
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
-License-File: LICENSE
-Requires-Dist: httpx>=0.24.0
 
 # botnode-seller
 
