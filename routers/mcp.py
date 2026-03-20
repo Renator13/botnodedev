@@ -197,6 +197,7 @@ def mcp_wallet(node: models.Node = Depends(get_current_node), db: Session = Depe
     return {
         "node_id": node.id,
         "balance_tck": str(node.balance),
+        "cri_score": float(node.cri_score) if node.cri_score is not None else 50.0,
         "pending_escrows": pending_escrows,
         "open_tasks": open_tasks,
     }

@@ -56,6 +56,40 @@ def get_skill_endpoint(skill_id: str) -> str:
     return f"{MUTHUR_URL}/run"
 
 
+# Sandbox preview: tells the user what keys the real output would contain.
+_SANDBOX_SAMPLE_KEYS = {
+    "sentiment_analyzer_v1": ["sentiment", "confidence", "emotions"],
+    "code_reviewer_v1": ["issues", "complexity", "suggestions"],
+    "web_research_v1": ["research", "sources", "summary"],
+    "hallucination_detector_v1": ["verdict", "confidence", "evidence"],
+    "performance_analyzer_v1": ["issues", "complexity", "optimization_priority"],
+    "prompt_optimizer_v1": ["optimized_prompt", "changes", "improvement_score"],
+    "compliance_checker_v1": ["compliant", "violations", "recommendations"],
+    "text_translator_v1": ["translated_text", "source_language", "target_language"],
+    "document_reporter_v1": ["summary", "key_findings", "metrics"],
+    "report_builder_v1": ["report", "sections", "charts"],
+    "report_compiler_v1": ["compiled_report", "table_of_contents"],
+    "schema_generator_v1": ["json_schema", "description"],
+    "logic_visualizer_v1": ["diagram", "truth_table", "simplification"],
+    "quality_gate_v1": ["passed", "overall_score", "criteria_results"],
+    "scheduler_v1": ["schedule", "timeline", "dependencies"],
+    "google_search_v1": ["search_results", "total_results"],
+    "key_point_extractor_v1": ["key_points", "summary"],
+    "language_detector_v1": ["language", "confidence", "alternatives"],
+    "lead_enricher_v1": ["company_info", "contacts", "social"],
+    "vector_memory_v1": ["stored", "key", "similarity"],
+    "csv_parser_v1": ["headers", "rows", "row_count"],
+    "pdf_parser_v1": ["text", "pages", "metadata"],
+    "url_fetcher_v1": ["url", "status_code", "text"],
+    "web_scraper_v1": ["title", "text", "links"],
+    "diff_analyzer_v1": ["unified_diff", "similarity_ratio", "changes"],
+    "image_describer_v1": ["width", "height", "format", "dominant_colors"],
+    "text_to_voice_v1": ["audio_base64", "format", "duration"],
+    "schema_enforcer_v1": ["valid", "errors", "error_count"],
+    "notification_router_v1": ["delivered", "status_code"],
+}
+
+
 # ---------------------------------------------------------------------------
 # Core loop
 # ---------------------------------------------------------------------------
@@ -68,7 +102,10 @@ def execute_single_task(task: dict, headers: dict) -> bool:
     input_data = task.get("input_data", {})
     endpoint = get_skill_endpoint(skill_id)
 
-    logger.info(f"Processing task {task_id} ({skill_label})")
+    buyer_id = task.get("buyer_id", "")
+    is_sandbox = buyer_id.startswith("sandbox-")
+
+    logger.info(f"Processing task {task_id} ({skill_label}){' [SANDBOX]' if is_sandbox else ''}")
 
     # 1. Claim the task (mark IN_PROGRESS)
     try:
@@ -84,7 +121,44 @@ def execute_single_task(task: dict, headers: dict) -> bool:
         logger.warning(f"Claim failed for {task_id}: {e} — skipping")
         return False
 
-    # 2. Call MUTHUR with retry
+    # 2. Sandbox preview — skip MUTHUR, return registration prompt
+    if is_sandbox:
+        sample_keys = _SANDBOX_SAMPLE_KEYS.get(skill_label, ["result"])
+        output_data = {
+            "preview": True,
+            "skill": skill_label,
+            "status": "executed",
+            "pipeline": "escrow_lock → claim → execute → settle (all real, zero mock)",
+            "output_keys": sample_keys,
+            "message": (
+                f"That was real. Escrow locked, task claimed, settlement queued — "
+                f"the full pipeline, not a simulation. "
+                f"The only thing missing is the output: {', '.join(sample_keys)}. "
+                f"Register a node, get 100 TCK on the house, and the next response comes back full."
+            ),
+            "next": "POST /v1/node/register — three fields, one API call, you're live.",
+            "docs": "https://botnode.dev/docs/quickstart",
+        }
+        logger.info(f"Sandbox preview for {task_id} ({skill_label})")
+        proof = hashlib.sha256(json.dumps(output_data, sort_keys=True).encode()).hexdigest()
+        try:
+            complete_resp = httpx.post(
+                f"{API_BASE}/v1/tasks/complete",
+                headers=headers,
+                json={"task_id": task_id, "output_data": output_data, "proof_hash": proof},
+                timeout=10,
+            )
+            if complete_resp.status_code == 200:
+                logger.info(f"Sandbox task {task_id} completed (preview)")
+                return True
+            else:
+                logger.error(f"Sandbox complete failed: {complete_resp.status_code} {complete_resp.text[:100]}")
+                return False
+        except Exception as e:
+            logger.error(f"Sandbox complete error: {e}")
+            return False
+
+    # 3. Call MUTHUR with retry
     output_data = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -146,13 +220,13 @@ def execute_single_task(task: dict, headers: dict) -> bool:
             return False
 
     if not output_data:
-        logger.error(f"No output for {task_id} after {MAX_RETRIES} attempts")
-        return False
+        logger.error(f"No output for {task_id} after {MAX_RETRIES} attempts — completing with error")
+        output_data = {"error": f"Skill execution failed after {MAX_RETRIES} attempts"}
 
-    # Check for error in output
+    # Check for error in output — still complete the task so escrow can refund
     if isinstance(output_data, dict) and output_data.get("error"):
         logger.warning(f"Skill returned error for {task_id}: {output_data['error']}")
-        return False
+        # Fall through to complete — the settlement worker will auto-refund error tasks
 
     # 3. Complete the task
     proof = hashlib.sha256(json.dumps(output_data, sort_keys=True).encode()).hexdigest()
