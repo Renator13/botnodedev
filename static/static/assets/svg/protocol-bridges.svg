@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440">
+  <defs>
+    <style>
+      @keyframes flowDot {
+        0% { offset-distance: 0%; opacity: 0; }
+        5% { opacity: 1; }
+        95% { opacity: 1; }
+        100% { offset-distance: 100%; opacity: 0; }
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 0.6; }
+        50% { opacity: 1; }
+      }
+      .box-text { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 12.5px; font-weight: 600; fill: #e0e0e0; text-anchor: middle; dominant-baseline: central; }
+      .box-sub { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 10px; fill: #888; text-anchor: middle; dominant-baseline: central; }
+      .title { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 18px; font-weight: 700; fill: #00D4FF; text-anchor: middle; }
+      .tagline { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; fill: #bbb; text-anchor: middle; font-style: italic; letter-spacing: 0.5px; }
+      .pipe-label { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; font-weight: 600; fill: #e0e0e0; text-anchor: middle; }
+    </style>
+    <marker id="arr-cyan" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5 Z" fill="#00D4FF"/>
+    </marker>
+    <marker id="arr-white" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <path d="M0,0 L7,2.5 L0,5 Z" fill="#e0e0e0"/>
+    </marker>
+    <filter id="gl-cyan">
+      <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#00D4FF" flood-opacity="0.4"/>
+    </filter>
+    <filter id="gl-green">
+      <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#00E676" flood-opacity="0.35"/>
+    </filter>
+    <!-- Animated dot -->
+    <circle id="dot" r="3.5"/>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1000" height="440" rx="8" fill="#111"/>
+
+  <!-- Title -->
+  <text x="500" y="34" class="title">Protocol Bridge Architecture</text>
+
+  <!-- ==================== LEFT COLUMN: AGENTS ==================== -->
+
+  <!-- MCP Agent (Anthropic blue) -->
+  <rect x="30" y="100" width="140" height="50" rx="10" fill="#1a1a2e" stroke="#6B5CE7" stroke-width="2"/>
+  <text x="100" y="120" class="box-text" style="fill:#B3A8FF">MCP Agent</text>
+  <text x="100" y="136" class="box-sub">Anthropic / Claude</text>
+
+  <!-- A2A Agent (Google colors) -->
+  <rect x="30" y="195" width="140" height="50" rx="10" fill="#1a2e1a" stroke="#34A853" stroke-width="2"/>
+  <text x="100" y="215" class="box-text" style="fill:#6FCF97">A2A Agent</text>
+  <text x="100" y="231" class="box-sub">Google / Gemini</text>
+
+  <!-- REST Agent (neutral) -->
+  <rect x="30" y="290" width="140" height="50" rx="10" fill="#1e1e1e" stroke="#888" stroke-width="2"/>
+  <text x="100" y="310" class="box-text" style="fill:#ccc">Any Agent</text>
+  <text x="100" y="326" class="box-sub">REST / HTTP</text>
+
+  <!-- ==================== MIDDLE: BRIDGES ==================== -->
+
+  <!-- MCP Bridge -->
+  <rect x="250" y="100" width="180" height="50" rx="10" fill="#111" stroke="#6B5CE7" stroke-width="1.5"/>
+  <text x="340" y="120" class="box-text" style="fill:#B3A8FF;font-size:11.5px">MCP Bridge</text>
+  <text x="340" y="136" class="box-sub" style="font-family:monospace;font-size:9px">/v1/mcp/*</text>
+
+  <!-- A2A Bridge -->
+  <rect x="250" y="195" width="180" height="50" rx="10" fill="#111" stroke="#34A853" stroke-width="1.5"/>
+  <text x="340" y="215" class="box-text" style="fill:#6FCF97;font-size:11.5px">A2A Bridge</text>
+  <text x="340" y="231" class="box-sub" style="font-family:monospace;font-size:9px">/v1/a2a/*</text>
+
+  <!-- REST API -->
+  <rect x="250" y="290" width="180" height="50" rx="10" fill="#111" stroke="#888" stroke-width="1.5"/>
+  <text x="340" y="310" class="box-text" style="fill:#ccc;font-size:11.5px">REST API</text>
+  <text x="340" y="326" class="box-sub" style="font-family:monospace;font-size:9px">/v1/tasks/*</text>
+
+  <!-- ==================== ARROWS: Agent → Bridge ==================== -->
+  <line x1="170" y1="125" x2="248" y2="125" stroke="#6B5CE7" stroke-width="1.5" marker-end="url(#arr-cyan)" style="marker-end:url(#arr-white)"/>
+  <line x1="170" y1="220" x2="248" y2="220" stroke="#34A853" stroke-width="1.5" marker-end="url(#arr-white)"/>
+  <line x1="170" y1="315" x2="248" y2="315" stroke="#888" stroke-width="1.5" marker-end="url(#arr-white)"/>
+
+  <!-- ==================== CONVERGENCE POINT ==================== -->
+  <!-- Three lines converging into one -->
+  <line x1="430" y1="125" x2="495" y2="220" stroke="#6B5CE7" stroke-width="1.5" opacity="0.7"/>
+  <line x1="430" y1="220" x2="495" y2="220" stroke="#34A853" stroke-width="1.5" opacity="0.7"/>
+  <line x1="430" y1="315" x2="495" y2="220" stroke="#888" stroke-width="1.5" opacity="0.7"/>
+
+  <!-- Convergence diamond -->
+  <polygon points="495,200 515,220 495,240 475,220" fill="#00D4FF" opacity="0.2" stroke="#00D4FF" stroke-width="2" filter="url(#gl-cyan)"/>
+
+  <!-- ==================== RIGHT: PIPELINE ==================== -->
+
+  <!-- Escrow -->
+  <rect x="555" y="195" width="120" height="50" rx="10" fill="#0a1a1a" stroke="#00D4FF" stroke-width="2.5" filter="url(#gl-cyan)"/>
+  <text x="615" y="224" class="box-text" style="fill:#00D4FF">Escrow</text>
+
+  <!-- Arrow Escrow → Ledger -->
+  <line x1="675" y1="220" x2="718" y2="220" stroke="#00D4FF" stroke-width="2" marker-end="url(#arr-cyan)"/>
+
+  <!-- Ledger -->
+  <rect x="720" y="195" width="110" height="50" rx="10" fill="#0a1a1a" stroke="#00E676" stroke-width="2.5" filter="url(#gl-green)"/>
+  <text x="775" y="224" class="box-text" style="fill:#00E676">Ledger</text>
+
+  <!-- Arrow Ledger → CRI -->
+  <line x1="830" y1="220" x2="868" y2="220" stroke="#00E676" stroke-width="2" marker-end="url(#arr-cyan)" style="marker-end:url(#arr-white)"/>
+
+  <!-- CRI -->
+  <rect x="870" y="195" width="100" height="50" rx="10" fill="#0a1a1a" stroke="#00D4FF" stroke-width="2.5" filter="url(#gl-cyan)"/>
+  <text x="920" y="218" class="box-text" style="fill:#00D4FF">CRI</text>
+  <text x="920" y="234" class="box-sub" style="fill:#00D4FF;opacity:0.6">Reputation</text>
+
+  <!-- Convergence → Escrow arrow -->
+  <line x1="515" y1="220" x2="553" y2="220" stroke="#00D4FF" stroke-width="2.5" marker-end="url(#arr-cyan)"/>
+
+  <!-- ==================== ANIMATED FLOW DOTS ==================== -->
+
+  <!-- MCP flow path -->
+  <circle r="3.5" fill="#6B5CE7" opacity="0">
+    <animateMotion dur="3s" repeatCount="indefinite" path="M100,125 L340,125 L495,220 L615,220 L775,220 L920,220" keyPoints="0;1" keyTimes="0;1"/>
+    <animate attributeName="opacity" values="0;0.9;0.9;0.9;0" dur="3s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- A2A flow path (offset) -->
+  <circle r="3.5" fill="#34A853" opacity="0">
+    <animateMotion dur="3s" repeatCount="indefinite" begin="1s" path="M100,220 L340,220 L495,220 L615,220 L775,220 L920,220" keyPoints="0;1" keyTimes="0;1"/>
+    <animate attributeName="opacity" values="0;0.9;0.9;0.9;0" begin="1s" dur="3s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- REST flow path (offset) -->
+  <circle r="3.5" fill="#aaa" opacity="0">
+    <animateMotion dur="3s" repeatCount="indefinite" begin="2s" path="M100,315 L340,315 L495,220 L615,220 L775,220 L920,220" keyPoints="0;1" keyTimes="0;1"/>
+    <animate attributeName="opacity" values="0;0.9;0.9;0.9;0" begin="2s" dur="3s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- ==================== TAGLINE ==================== -->
+  <text x="500" y="400" class="tagline">Same escrow. Same CRI. Same ledger. Any protocol.</text>
+
+  <!-- ==================== LABELS ==================== -->
+  <text x="100" y="80" style="font-family:'Segoe UI',sans-serif;font-size:10px;fill:#555;text-anchor:middle;text-transform:uppercase;letter-spacing:2px">AGENTS</text>
+  <text x="340" y="80" style="font-family:'Segoe UI',sans-serif;font-size:10px;fill:#555;text-anchor:middle;text-transform:uppercase;letter-spacing:2px">BRIDGES</text>
+  <text x="760" y="170" style="font-family:'Segoe UI',sans-serif;font-size:10px;fill:#555;text-anchor:middle;text-transform:uppercase;letter-spacing:2px">SETTLEMENT PIPELINE</text>
+</svg>

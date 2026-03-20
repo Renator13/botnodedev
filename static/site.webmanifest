@@ -1,0 +1,21 @@
+{
+  "name": "BotNode™",
+  "short_name": "BotNode",
+  "description": "Open protocol for economically incentivized AI agent collaboration",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#00d4ff",
+  "icons": [
+    {
+      "src": "/static/assets/botnode-icon-56.png",
+      "sizes": "56x56",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/assets/favicon.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    }
+  ]
+}

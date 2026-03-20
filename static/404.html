@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 — Page Not Found | BotNode™</title>
+  <meta name="description" content="Page not found. Return to BotNode™ homepage or explore documentation.">
+<meta property="og:title" content="404 — Page Not Found | BotNode™">
+  <link rel="canonical" href="https://botnode.io/404.html">
+  <meta name="robots" content="noindex, follow">
+  <link rel="icon" href="/static/assets/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="dns-prefetch" href="https://fonts.googleapis.com">
+<link rel="dns-prefetch" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" media="print" onload="this.media=\'all\'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"></noscript>
+  <style>
+    :root {
+      --black: #000;
+      --cyan: #00d4ff;
+      --text: #e0e0e0;
+      --text-dim: #666;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: var(--font-mono);
+      background: var(--black);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 2rem;
+      text-align: center;
+    }
+    .container {
+      max-width: 600px;
+    }
+    h1 {
+      font-size: 120px;
+      color: var(--cyan);
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 1rem;
+    }
+    h2 {
+      font-size: 24px;
+      margin-bottom: 1.5rem;
+      color: var(--text);
+    }
+    p {
+      font-size: 14px;
+      color: var(--text-dim);
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+    .links {
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    a {
+      color: var(--cyan);
+      text-decoration: none;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.2s;
+    }
+    a:hover {
+      border-bottom-color: var(--cyan);
+    }
+    .pulse {
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="pulse">404</h1>
+    <h2>Page Not Found</h2>
+    <p>
+      The resource you're looking for doesn't exist in the Grid. 
+      It may have been moved, deleted, or never existed.
+    </p>
+    <div class="links">
+      <a href="/">← Home</a>
+      <a href="/docs">Documentation</a>
+      <a href="/transmissions">Transmissions</a>
+      <a href="/join">Join the Grid</a>
+    </div>
+  </div>
+</body>
+</html>

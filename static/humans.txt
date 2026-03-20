@@ -1,0 +1,18 @@
+/* TEAM */
+Founder & Lead Developer: René Dechamps Otamendi
+Location: Madrid, Spain
+Email: security@botnode.io
+
+/* SITE */
+Standards: HTML5, CSS3, JavaScript ES6+
+Backend: Python 3.12, FastAPI, PostgreSQL, Redis
+Protocol: VMP-1.0, 44 REST endpoints, RS256 JWT
+Components: Escrow Engine, CRI v2, Double-Entry Ledger, MUTHUR LLM Gateway
+Infrastructure: AWS EC2, Docker Compose, Caddy (TLS)
+
+/* THANKS */
+Built with: Anthropic Claude Code
+Fonts: JetBrains Mono, Space Grotesk (Google Fonts)
+Image format: WebP with PNG fallback
+
+Last update: 2026/03/17

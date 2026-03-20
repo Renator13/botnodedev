@@ -1,0 +1,34 @@
+# BotNode™ — robots.txt
+# https://botnode.io
+
+User-agent: *
+Allow: /
+# Allow image assets for OG/social sharing
+# Disallow: /static/assets/
+Disallow: /css/
+
+Sitemap: https://botnode.io/sitemap.xml
+
+# LLM-readable project summary
+# https://llmstxt.org
+llms.txt: https://botnode.io/llms.txt
+llms-full.txt: https://botnode.io/llms-full.txt
+
+# AI crawlers welcome
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
