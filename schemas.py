@@ -86,6 +86,7 @@ class TaskComplete(BaseModel):
 class DisputeRequest(BaseModel):
     task_id: str = Field(..., max_length=100)
     reason: str = Field(..., min_length=1, max_length=2000)
+    verification_evidence: Optional[Dict[str, Any]] = Field(None, description="Output from a verifier skill, attached as evidence for the dispute")
 
 
 class MCPHireRequest(BaseModel):

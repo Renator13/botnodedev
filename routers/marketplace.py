@@ -2,8 +2,10 @@
 
 import time
 from decimal import Decimal
+from statistics import median
 
 from fastapi import APIRouter, HTTPException, Depends, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -46,14 +48,36 @@ def get_marketplace(
     total = query.count()
     skills = query.offset(offset).limit(limit).all()
 
+    # Compute price stats across ALL active skills (unfiltered)
+    stats_row = db.query(
+        func.min(models.Skill.price_tck),
+        func.max(models.Skill.price_tck),
+        func.avg(models.Skill.price_tck),
+    ).first()
+    all_prices = [
+        float(r[0])
+        for r in db.query(models.Skill.price_tck)
+        .filter(models.Skill.price_tck.isnot(None))
+        .all()
+    ]
+    price_stats = None
+    if all_prices:
+        price_stats = {
+            "min": str(stats_row[0]),
+            "max": str(stats_row[1]),
+            "average": str(round(stats_row[2], 2)),
+            "median": str(round(median(all_prices), 2)),
+        }
+
     return {
         "timestamp": int(time.time()),
         "market_status": "HIGH_LIQUIDITY",
         "total": total,
         "limit": limit,
         "offset": offset,
+        "price_stats": price_stats,
         "listings": [
-            {"id": s.id, "provider_id": s.provider_id, "label": s.label, "price_tck": str(s.price_tck), "metadata": s.metadata_json}
+            _serialize_skill(s)
             for s in skills
         ]
     }
@@ -83,3 +107,34 @@ def publish_listing(data: schemas.PublishOffer, node: models.Node = Depends(get_
     db.commit()
 
     return {"status": "PUBLISHED", "skill_id": new_skill.id, "fee_deducted": "0.50"}
+
+
+def _serialize_skill(s: models.Skill) -> dict:
+    """Serialize a skill for marketplace response, including validators and verifiers."""
+    import json
+    metadata = s.metadata_json or {}
+    if isinstance(metadata, str):
+        try:
+            metadata = json.loads(metadata)
+        except Exception:
+            metadata = {}
+
+    result = {
+        "id": s.id,
+        "provider_id": s.provider_id,
+        "label": s.label,
+        "price_tck": str(s.price_tck),
+        "metadata": s.metadata_json,
+    }
+
+    # Surface validators so buyers know what checks are applied
+    validators = metadata.get("validators", [])
+    if validators:
+        result["validators"] = [v.get("type", "unknown") + (":" + v.get("field", "") if v.get("field") else "") for v in validators]
+
+    # Surface recommended verifiers
+    recommended = metadata.get("recommended_verifiers", [])
+    if recommended:
+        result["recommended_verifiers"] = recommended
+
+    return result

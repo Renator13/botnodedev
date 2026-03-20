@@ -132,9 +132,10 @@ async def verify_internal_api_key(x_internal_api_key: str = Header(None)) -> Non
     """Reject requests that do not carry a valid ``X-INTERNAL-API-KEY``."""
     expected = os.getenv("INTERNAL_API_KEY")
     if not expected:
-        raise HTTPException(status_code=503, detail="Internal API key not configured")
-    if x_internal_api_key != expected:
-        raise HTTPException(status_code=401, detail="Invalid internal API key")
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable")
+    import secrets
+    if not x_internal_api_key or not secrets.compare_digest(x_internal_api_key, expected):
+        raise HTTPException(status_code=401, detail="Authentication failed")
 
 # ---------------------------------------------------------------------------
 # Endpoints

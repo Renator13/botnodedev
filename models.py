@@ -52,6 +52,13 @@ class Node(Base):
     cri_score = Column(Float, default=30.0)
     cri_updated_at = Column(DateTime, nullable=True)
 
+    # Sandbox
+    is_sandbox = Column(Boolean, default=False, index=True)
+
+    # Canary mode — exposure caps (nullable = no cap)
+    max_spend_daily = Column(Numeric(12, 2), nullable=True)
+    max_escrow_per_task = Column(Numeric(12, 2), nullable=True)
+
     # Genesis program fields
     signup_token = Column(String(64), nullable=True, index=True)
     has_genesis_badge = Column(Boolean, default=False, index=True)
@@ -79,6 +86,7 @@ class Escrow(Base):
     auto_settle_at = Column(DateTime, nullable=True, index=True)
     auto_refund_at = Column(DateTime, nullable=True, index=True)
     idempotency_key = Column(String(100), nullable=True, unique=True, index=True)
+    dispute_reason = Column(String(50), nullable=True)
 
 class Task(Base):
     __tablename__ = "tasks"
@@ -92,6 +100,10 @@ class Task(Base):
     escrow_id = Column(String, ForeignKey("escrows.id"), nullable=True)
     integration = Column(String, nullable=True)
     capability = Column(String, nullable=True)
+    protocol = Column(String(20), default="api", index=True)  # mcp, a2a, api, sdk
+    llm_provider_used = Column(String(20), nullable=True, index=True)  # groq, nvidia, glm, gemini, gpt
+    is_shadow = Column(Boolean, default=False, index=True)  # shadow mode: simulate without moving TCK
+    validator_ids = Column(JSON, nullable=True)  # list of validator IDs to run before settlement
     created_at = Column(DateTime, server_default=func.now(), index=True)
 
 
@@ -218,6 +230,108 @@ class BountySubmission(Base):
     # FSM: pending → accepted | rejected | withdrawn
     created_at = Column(DateTime, server_default=func.now(), index=True)
     reviewed_at = Column(DateTime, nullable=True)
+
+
+class DisputeRulesLog(Base):
+    """Audit log for automated dispute resolution.
+
+    Every time the dispute engine evaluates a completed task, the decision
+    (auto-refund, auto-settle, or flagged-for-manual) is recorded here with
+    the rule that fired and a JSON blob of diagnostic details.
+    """
+    __tablename__ = "dispute_rules_log"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    task_id = Column(String, ForeignKey("tasks.id"), nullable=False, index=True)
+    escrow_id = Column(String, ForeignKey("escrows.id"), nullable=False, index=True)
+    rule_applied = Column(String(50), nullable=False, index=True)
+    rule_details = Column(JSON, nullable=True)
+    action_taken = Column(String(30), nullable=False)  # AUTO_REFUND, AUTO_SETTLE, FLAGGED_MANUAL
+    created_at = Column(DateTime, server_default=func.now(), index=True)
+
+
+class Validator(Base):
+    """Custom validator that buyers can attach to tasks.
+
+    Validators run after task completion but before settlement.
+    If any validator returns FAIL, the escrow is auto-refunded.
+    Types: schema (JSON Schema), regex (pattern match), webhook (external URL).
+    """
+    __tablename__ = "validators"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    node_id = Column(String, ForeignKey("nodes.id"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    type = Column(String(20), nullable=False)  # schema, regex, webhook
+    config = Column(JSON, nullable=False)
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class ValidatorResult(Base):
+    """Result of running a validator against a task output."""
+    __tablename__ = "validator_results"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    task_id = Column(String, ForeignKey("tasks.id"), nullable=False, index=True)
+    validator_id = Column(String, ForeignKey("validators.id"), nullable=False, index=True)
+    result = Column(String(20), nullable=False)  # PASS, FAIL, INCONCLUSIVE, ERROR
+    details = Column(JSON, nullable=True)
+    evaluated_at = Column(DateTime, server_default=func.now())
+
+
+class WebhookSubscription(Base):
+    """Webhook subscription for event notifications."""
+    __tablename__ = "webhook_subscriptions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    node_id = Column(String, ForeignKey("nodes.id"), nullable=False, index=True)
+    url = Column(String, nullable=False)
+    signing_secret = Column(String, nullable=False)  # used to HMAC-sign deliveries; shown to subscriber once at creation
+    events = Column(JSON, nullable=False)  # ["task.completed", "escrow.settled", ...]
+    active = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class WebhookDelivery(Base):
+    """Individual webhook delivery attempt."""
+    __tablename__ = "webhook_deliveries"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    subscription_id = Column(String, ForeignKey("webhook_subscriptions.id"), nullable=False, index=True)
+    event_type = Column(String(50), nullable=False, index=True)
+    payload = Column(JSON, nullable=False)
+    status = Column(String(20), default="pending", index=True)  # pending, delivered, failed, exhausted
+    attempts = Column(Integer, default=0)
+    last_attempt_at = Column(DateTime, nullable=True)
+    last_response_code = Column(Integer, nullable=True)
+    last_error = Column(String, nullable=True)
+    next_retry_at = Column(DateTime, nullable=True, index=True)
+    created_at = Column(DateTime, server_default=func.now(), index=True)
+
+
+class VerifierPioneerAward(Base):
+    """Tracks the Verifier Pioneer Program — first 20 verifiers to complete
+    10 successful verifications earn 500 TCK from the Vault."""
+    __tablename__ = "verifier_pioneer_awards"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    node_id = Column(String, ForeignKey("nodes.id"), nullable=False, unique=True, index=True)
+    verifier_skill_id = Column(String, nullable=False)
+    successful_verifications = Column(Integer, nullable=False)
+    pioneer_rank = Column(Integer, nullable=False)
+    bonus_tck = Column(Numeric(12, 2), nullable=False)
+    awarded_at = Column(DateTime, server_default=func.now())
+
+
+class SandboxShare(Base):
+    """Shared sandbox trade result for social sharing with OG tags."""
+    __tablename__ = "sandbox_shares"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    trade_data = Column(JSON, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
 
 
 class Job(Base):

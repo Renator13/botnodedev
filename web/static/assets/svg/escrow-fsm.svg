@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 520">
+  <defs>
+    <style>
+      @keyframes pulseArrow1 {
+        0%, 20% { stroke-opacity: 0.3; }
+        10% { stroke-opacity: 1; }
+      }
+      @keyframes pulseArrow2 {
+        0%, 30% { stroke-opacity: 0.3; }
+        20% { stroke-opacity: 1; }
+      }
+      @keyframes pulseArrow3 {
+        0%, 40% { stroke-opacity: 0.3; }
+        30% { stroke-opacity: 1; }
+      }
+      @keyframes glowHappy {
+        0%, 100% { filter: drop-shadow(0 0 2px #00D4FF); }
+        50% { filter: drop-shadow(0 0 8px #00D4FF); }
+      }
+      .arrow-happy-1 {
+        animation: pulseArrow1 4s ease-in-out infinite;
+      }
+      .arrow-happy-2 {
+        animation: pulseArrow2 4s ease-in-out infinite;
+      }
+      .arrow-happy-3 {
+        animation: pulseArrow3 4s ease-in-out infinite;
+      }
+      .state-text { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; font-weight: 600; fill: #e0e0e0; text-anchor: middle; }
+      .label-text { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 10.5px; fill: #bbb; text-anchor: middle; }
+      .annotation { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 10px; fill: #FFAB00; text-anchor: middle; font-style: italic; }
+      .annotation-green { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 10px; fill: #00E676; text-anchor: middle; font-style: italic; }
+      .title { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 18px; font-weight: 700; fill: #00D4FF; text-anchor: middle; }
+      .subtitle { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; fill: #666; text-anchor: middle; }
+      marker path { fill: inherit; }
+    </style>
+    <marker id="ah-cyan" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#00D4FF"/>
+    </marker>
+    <marker id="ah-amber" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#FFAB00"/>
+    </marker>
+    <marker id="ah-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#00E676"/>
+    </marker>
+    <marker id="ah-red" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#FF3D3D"/>
+    </marker>
+    <marker id="ah-gray" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#888"/>
+    </marker>
+    <filter id="glow-cyan">
+      <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#00D4FF" flood-opacity="0.5"/>
+    </filter>
+    <filter id="glow-green">
+      <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#00E676" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="960" height="520" rx="8" fill="#111"/>
+
+  <!-- Title -->
+  <text x="480" y="36" class="title">Escrow Finite State Machine</text>
+  <text x="480" y="52" class="subtitle">BotNode task payment lifecycle</text>
+
+  <!-- ==================== STATES ==================== -->
+
+  <!-- PENDING -->
+  <rect x="60" y="180" width="160" height="52" rx="12" fill="none" stroke="#00D4FF" stroke-width="2.5" filter="url(#glow-cyan)"/>
+  <text x="140" y="211" class="state-text">PENDING</text>
+
+  <!-- AWAITING_SETTLEMENT -->
+  <rect x="320" y="180" width="210" height="52" rx="12" fill="none" stroke="#FFAB00" stroke-width="2.5"/>
+  <text x="425" y="211" class="state-text">AWAITING_SETTLEMENT</text>
+
+  <!-- 24h dispute window annotation -->
+  <text x="425" y="170" class="annotation">24h dispute window</text>
+
+  <!-- SETTLED -->
+  <rect x="640" y="180" width="160" height="52" rx="12" fill="#00E676" fill-opacity="0.15" stroke="#00E676" stroke-width="2.5" filter="url(#glow-green)"/>
+  <text x="720" y="211" class="state-text" style="fill:#00E676">SETTLED</text>
+
+  <!-- 97% / 3% annotations -->
+  <text x="720" y="252" class="annotation-green">Seller receives 97%</text>
+  <text x="720" y="266" class="annotation" style="fill:#888">3% platform fee</text>
+
+  <!-- DISPUTED -->
+  <rect x="430" y="360" width="160" height="52" rx="12" fill="none" stroke="#FF3D3D" stroke-width="2.5"/>
+  <text x="510" y="391" class="state-text" style="fill:#FF3D3D">DISPUTED</text>
+
+  <!-- REFUNDED -->
+  <rect x="130" y="360" width="160" height="52" rx="12" fill="none" stroke="#888" stroke-width="2"/>
+  <text x="210" y="391" class="state-text" style="fill:#999">REFUNDED</text>
+
+  <!-- ==================== ARROWS ==================== -->
+
+  <!-- PENDING → AWAITING_SETTLEMENT (happy path) -->
+  <line x1="220" y1="206" x2="318" y2="206" stroke="#00D4FF" stroke-width="2" marker-end="url(#ah-cyan)" class="arrow-happy-1"/>
+  <text x="270" y="196" class="label-text" style="fill:#00D4FF">task completed</text>
+
+  <!-- AWAITING_SETTLEMENT → SETTLED (happy path) -->
+  <line x1="530" y1="206" x2="638" y2="206" stroke="#00E676" stroke-width="2" marker-end="url(#ah-green)" class="arrow-happy-2"/>
+  <text x="584" y="196" class="label-text" style="fill:#00E676">24h no dispute</text>
+
+  <!-- AWAITING_SETTLEMENT → DISPUTED -->
+  <path d="M480,232 L480,290 L510,358" fill="none" stroke="#FF3D3D" stroke-width="1.8" marker-end="url(#ah-red)"/>
+  <text x="520" y="300" class="label-text" style="fill:#FF3D3D">buyer disputes</text>
+
+  <!-- DISPUTED → REFUNDED -->
+  <line x1="430" y1="386" x2="292" y2="386" stroke="#888" stroke-width="1.8" marker-end="url(#ah-gray)"/>
+  <text x="360" y="376" class="label-text">dispute upheld</text>
+
+  <!-- DISPUTED → SETTLED -->
+  <path d="M590,376 L660,376 L710,234" fill="none" stroke="#00E676" stroke-width="1.8" marker-end="url(#ah-green)"/>
+  <text x="665" y="320" class="label-text" style="fill:#00E676">dispute rejected</text>
+
+  <!-- PENDING → REFUNDED (72h timeout) -->
+  <path d="M120,232 L120,340 L168,358" fill="none" stroke="#888" stroke-width="1.8" stroke-dasharray="6,4" marker-end="url(#ah-gray)"/>
+  <text x="90" y="300" class="label-text" style="text-anchor:end;fill:#888">72h timeout</text>
+
+  <!-- 72h auto-refund annotation -->
+  <text x="92" y="316" class="annotation" style="text-anchor:end;fill:#666;font-size:9px">auto-refund</text>
+
+  <!-- ==================== HAPPY PATH GLOW ==================== -->
+  <!-- Animated dots along happy path -->
+  <circle r="4" fill="#00D4FF" opacity="0.9">
+    <animateMotion dur="4s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1">
+      <mpath>
+        <path d="M140,206 L320,206 L425,206 L530,206 L640,206 L720,206"/>
+      </mpath>
+    </animateMotion>
+    <animate attributeName="opacity" values="0;1;1;1;0" dur="4s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- ==================== LEGEND ==================== -->
+  <rect x="680" y="430" width="260" height="75" rx="6" fill="#111" stroke="#333" stroke-width="1"/>
+  <text x="690" y="450" style="font-family:'Segoe UI',sans-serif;font-size:10px;fill:#666">LEGEND</text>
+  <line x1="690" y1="465" x2="720" y2="465" stroke="#00D4FF" stroke-width="2"/>
+  <text x="728" y="469" style="font-family:'Segoe UI',sans-serif;font-size:10px;fill:#bbb">Happy path (animated)</text>
+  <line x1="690" y1="482" x2="720" y2="482" stroke="#FF3D3D" stroke-width="1.5"/>
+  <text x="728" y="486" style="font-family:'Segoe UI',sans-serif;font-size:10px;fill:#bbb">Dispute path</text>
+  <line x1="690" y1="498" x2="720" y2="498" stroke="#888" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="728" y="502" style="font-family:'Segoe UI',sans-serif;font-size:10px;fill:#bbb">Timeout / refund</text>
+</svg>

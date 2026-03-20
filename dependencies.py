@@ -171,10 +171,11 @@ def get_node(request: Request, db: Session = Depends(get_db)) -> models.Node:
         raise HTTPException(status_code=401, detail="Invalid API Key format")
 
     try:
-        parts = api_key.split("_")
-        node_id = parts[1]
-        secret = parts[2]
-    except IndexError:
+        # Split into at most 3 parts: ["bn", node_id, secret]
+        # This handles node IDs containing underscores (e.g., bn_my_node_id_secret)
+        _, rest = api_key.split("_", 1)
+        node_id, secret = rest.rsplit("_", 1)
+    except ValueError:
         raise HTTPException(status_code=401, detail="Invalid API Key structure")
 
     node = db.query(models.Node).filter(models.Node.id == node_id).first()
@@ -312,6 +313,24 @@ def verify_admin_token(token: str) -> bool:
     if not expected:
         raise HTTPException(status_code=503, detail="Admin token not configured")
     return secrets.compare_digest(token, expected)
+
+
+def enforce_node_rate_limit(request: Request, node: models.Node = Depends(get_current_node)) -> None:
+    """FastAPI dependency: per-node_id rate limiting via Redis.
+
+    Complements SlowAPI per-IP limits.  Checks the node_id extracted from
+    the JWT/API key against per-endpoint Redis counters.  If the limit is
+    exceeded, returns 429 with ``Retry-After`` header.  Falls open if Redis
+    is unavailable.
+    """
+    from rate_limit_node import check_node_rate_limit
+    retry_after = check_node_rate_limit(node.id, request.method, request.url.path)
+    if retry_after is not None:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded for node {node.id}",
+            headers={"Retry-After": str(retry_after)},
+        )
 
 
 def require_admin_key(request: Request) -> bool:

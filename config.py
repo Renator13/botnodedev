@@ -35,8 +35,9 @@ MAX_GENESIS_BADGES = 200
 GENESIS_BONUS_TCK = Decimal("300")
 """TCK bonus credited when a Genesis badge is awarded."""
 
-GENESIS_CRI_FLOOR = 1.0
-"""Minimum CRI score guaranteed to Genesis nodes during the protection window."""
+GENESIS_CRI_FLOOR = 30.0
+"""Minimum CRI score guaranteed to Genesis nodes during the protection window.
+Set to the base score (30) so Genesis nodes never drop below a new node's starting CRI."""
 
 GENESIS_PROTECTION_WINDOW = timedelta(days=180)
 """Duration of the CRI-floor protection after a Genesis node's first settlement."""
@@ -63,7 +64,7 @@ CHALLENGE_TTL_SECONDS = 30
 # ---------------------------------------------------------------------------
 
 TCK_EXCHANGE_RATE = Decimal("0.01")
-"""USD value of 1 TCK.  100 TCK = $1."""
+"""Base reference price per TCK in USD.  Volume discounts apply on larger packages."""
 
 TCK_PACKAGES = {
     "starter": {
@@ -73,7 +74,7 @@ TCK_PACKAGES = {
         "tck_base": 500,
         "tck_bonus": 0,
         "tck_total": Decimal("500"),
-        "description": "500 TCK — Try the network",
+        "description": "500 TCK — $0.0100/TCK",
     },
     "builder": {
         "id": "builder",
@@ -82,7 +83,7 @@ TCK_PACKAGES = {
         "tck_base": 1000,
         "tck_bonus": 200,
         "tck_total": Decimal("1200"),
-        "description": "1,200 TCK — 20% bonus included",
+        "description": "1,200 TCK — $0.0083/TCK (volume discount)",
     },
     "pro": {
         "id": "pro",
@@ -91,7 +92,7 @@ TCK_PACKAGES = {
         "tck_base": 2500,
         "tck_bonus": 1000,
         "tck_total": Decimal("3500"),
-        "description": "3,500 TCK — 40% bonus included",
+        "description": "3,500 TCK — $0.0071/TCK (volume discount)",
     },
     "team": {
         "id": "team",
@@ -100,17 +101,39 @@ TCK_PACKAGES = {
         "tck_base": 5000,
         "tck_bonus": 5000,
         "tck_total": Decimal("10000"),
-        "description": "10,000 TCK — 100% bonus included",
+        "description": "10,000 TCK — $0.0050/TCK (volume discount)",
     },
 }
+
+# ---------------------------------------------------------------------------
+# Verifier Pioneer Program
+# ---------------------------------------------------------------------------
+
+MAX_VERIFIER_PIONEERS = 20
+"""Maximum number of verifier skills eligible for the pioneer bonus."""
+
+VERIFIER_PIONEER_BONUS = Decimal("500.00")
+"""TCK bonus from VAULT for the first 20 verifiers that complete 10 verified
+transactions where the original task settled without dispute."""
+
+VERIFIER_PIONEER_THRESHOLD = 10
+"""Number of successful verifications required to earn the pioneer bonus."""
 
 # ---------------------------------------------------------------------------
 # Agent Evolution (levels)
 # ---------------------------------------------------------------------------
 
 ENFORCE_LEVEL_GATES = os.getenv("ENFORCE_LEVEL_GATES", "false").lower() == "true"
-"""When False, level gates return warnings but don't block. Activate in production
-when there's enough activity to make gates meaningful."""
+"""Level gate enforcement switch.
+
+When False (default): gates return warnings but don't block. Any node can
+publish skills, create bounties, etc. regardless of level.
+
+When True: gates enforce level requirements. Publishing requires Worker (100 TCK
+spent), bounty creation requires Artisan (1000 TCK + CRI 50), etc.
+
+Flip this switch when the network has 50+ active nodes with organic trade
+activity. One line in .env: ENFORCE_LEVEL_GATES=true"""
 
 LEVELS = (
     {"id": 0, "name": "Spawn",     "tck_spent": 0,     "cri_min": 0,  "emoji": "egg"},

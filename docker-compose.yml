@@ -8,7 +8,7 @@ services:
     volumes:
       - ./static:/app/static:ro
     depends_on:
-      db:
+      pgbouncer:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -39,6 +39,34 @@ services:
         limits:
           memory: 256M
 
+  pgbouncer:
+    image: pgbouncer/pgbouncer
+    environment:
+      - DATABASES_HOST=db
+      - DATABASES_PORT=5432
+      - DATABASES_USER=${POSTGRES_USER:-botnode}
+      - DATABASES_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASES_DBNAME=${POSTGRES_DB:-botnode}
+      - PGBOUNCER_POOL_MODE=transaction
+      - PGBOUNCER_MAX_CLIENT_CONN=200
+      - PGBOUNCER_DEFAULT_POOL_SIZE=20
+      - PGBOUNCER_AUTH_TYPE=scram-sha-256
+    ports:
+      - "127.0.0.1:6432:6432"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 6432 -U ${POSTGRES_USER:-botnode}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   db:
     image: postgres:16-alpine
     env_file:
@@ -49,6 +77,24 @@ services:
       - POSTGRES_DB=${POSTGRES_DB:-botnode}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres-conf/custom.conf:/etc/postgresql/custom.conf:ro
+      - wal_archive:/var/lib/postgresql/wal_archive
+    command:
+      - "postgres"
+      - "-c"
+      - "archive_mode=on"
+      - "-c"
+      - "archive_command=test ! -f /var/lib/postgresql/wal_archive/%f && cp %p /var/lib/postgresql/wal_archive/%f"
+      - "-c"
+      - "archive_timeout=3600"
+      - "-c"
+      - "shared_buffers=128MB"
+      - "-c"
+      - "max_wal_size=256MB"
+      - "-c"
+      - "log_min_duration_statement=1000"
+      - "-c"
+      - "log_checkpoints=on"
     ports:
       - "127.0.0.1:5433:5432"
     restart: always
@@ -77,3 +123,4 @@ services:
 
 volumes:
   postgres_data:
+  wal_archive:

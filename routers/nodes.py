@@ -27,7 +27,7 @@ router = APIRouter(tags=["nodes"])
 
 
 @router.post("/v1/node/register")
-@limiter.limit("5/minute")
+@limiter.limit("3/hour")
 def register_node(data: schemas.RegisterRequest, request: Request, db: Session = Depends(get_db)) -> dict:
     """Begin node registration by issuing a unique prime-sum challenge.
 
@@ -36,7 +36,7 @@ def register_node(data: schemas.RegisterRequest, request: Request, db: Session =
     ``/v1/node/verify`` within 30 seconds.  Each ``node_id`` can only have
     one pending challenge at a time.
 
-    Rate limit: 5 requests/minute per IP.
+    Rate limit: 3 requests/hour per IP.
     """
     # Prevent duplicate registration of the same ID
     existing = db.query(models.Node).filter(models.Node.id == data.node_id).first()

@@ -14,6 +14,7 @@ mounts the domain routers that contain the actual endpoint logic:
 * ``routers.static_pages`` — landing page, transmissions, mission files
 * ``routers.evolution`` — agent levels and leaderboard
 * ``routers.bounty`` — bounty board (create, browse, submit, award, cancel)
+* ``routers.sandbox_share`` — shareable sandbox trade results with OG tags
 
 Shared authentication helpers, constants, and utilities live in
 ``dependencies.py``.  Database models are in ``models.py``.
@@ -49,7 +50,7 @@ from dependencies import limiter, logger, _utcnow, BASE_URL, DOCS_ROOT, LEGAL_RO
 from backend_skill_extensions import add_skill_routes_to_app
 
 # Routers
-from routers import nodes, marketplace, escrow, mcp, admin, reputation, static_pages, evolution, bounty
+from routers import nodes, marketplace, escrow, mcp, admin, reputation, static_pages, evolution, bounty, public_profiles, webhooks, a2a_bridge, sandbox, receipts, shadow, validators, benchmarks, sandbox_share, seller
 
 # ---------------------------------------------------------------------------
 # DB retry loop
@@ -86,7 +87,7 @@ ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "https://botnode.io").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["Authorization", "X-API-KEY", "Content-Type"],
     allow_credentials=False,
 )
@@ -111,30 +112,50 @@ async def health_check() -> dict:
     itself still responds so load-balancers can distinguish app vs DB failures).
     """
     db_status = "disconnected"
+    db = database.SessionLocal()
     try:
-        db = database.SessionLocal()
         db.execute(text("SELECT 1"))
-        db.close()
         db_status = "connected"
     except (sqlalchemy.exc.OperationalError, sqlalchemy.exc.DatabaseError):
         pass
+    finally:
+        db.close()
     return {"status": "ok", "database": db_status, "timestamp": _utcnow().isoformat()}
 
 
 # ---------------------------------------------------------------------------
 # Request-ID middleware (runs first — outermost)
 # ---------------------------------------------------------------------------
+CURRENT_API_VERSION = "2026-03-18"
+"""VMP-1.0 API version, Stripe-style date format.  Sent on every response."""
+
+
 @app.middleware("http")
 async def request_id_middleware(request: Request, call_next) -> Response:
-    """Assign a unique ``X-Request-ID`` to every request for log correlation.
+    """Assign ``X-Request-ID`` + API version headers to every response.
 
     If the client sends an ``X-Request-ID`` header it is reused; otherwise a
-    UUID4 is generated.  The ID is attached to the response headers so callers
-    can reference it in support requests.
+    UUID4 is generated.  VMP-Version headers enable future deprecation
+    without breaking existing clients (T2.2).
     """
+    start = time.time()
     request_id = request.headers.get("X-Request-ID", str(_uuid.uuid4()))
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
+
+    # T2.2: API Versioning headers
+    response.headers["VMP-Version"] = CURRENT_API_VERSION
+    response.headers["VMP-Min-Version"] = CURRENT_API_VERSION
+    requested = request.headers.get("VMP-Version")
+    if requested and requested != CURRENT_API_VERSION:
+        response.headers["VMP-Version-Warning"] = (
+            f"You requested {requested}, current is {CURRENT_API_VERSION}"
+        )
+
+    # T2.3: Response timing header
+    duration_ms = (time.time() - start) * 1000
+    response.headers["X-Response-Time-Ms"] = f"{duration_ms:.1f}"
+
     return response
 
 
@@ -212,9 +233,70 @@ app.include_router(reputation.router)
 app.include_router(static_pages.router)
 app.include_router(evolution.router)
 app.include_router(bounty.router)
+app.include_router(public_profiles.router)
+app.include_router(webhooks.router)
+app.include_router(a2a_bridge.router)
+app.include_router(sandbox.router)
+app.include_router(receipts.router)
+app.include_router(shadow.router)
+app.include_router(validators.router)
+app.include_router(benchmarks.router)
+app.include_router(sandbox_share.router)
+app.include_router(seller.router)
 
 # v1.1 — Wallet / Stripe fiat on-ramp (hidden until fiscal setup complete)
 if os.getenv("ENABLE_WALLET", "false").lower() == "true":
     from routers import wallet
     app.include_router(wallet.router)
     logger.info("Wallet endpoints enabled (ENABLE_WALLET=true)")
+
+
+# ---------------------------------------------------------------------------
+# Webhook delivery worker (background task)
+# ---------------------------------------------------------------------------
+import asyncio
+import database as _database
+
+
+async def _webhook_worker():
+    """Background worker that processes pending webhook deliveries every 30s."""
+    while True:
+        try:
+            db = _database.SessionLocal()
+            try:
+                from webhook_service import process_pending_deliveries
+                result = process_pending_deliveries(db)
+                if result["delivered"] or result["exhausted"]:
+                    logger.info(f"Webhook worker: {result}")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Webhook worker error: {e}")
+        await asyncio.sleep(30)
+
+
+async def _settlement_worker():
+    """Background worker that processes settlements and refunds every 15s.
+
+    Replaces cron-based auto-settle and auto-refund with a self-healing
+    worker that retries on failure and alerts on stale escrows.
+    """
+    while True:
+        try:
+            db = _database.SessionLocal()
+            try:
+                from settlement_worker import process_settlements
+                result = process_settlements(db)
+                if result.get("settled") or result.get("auto_refunded") or result.get("failed"):
+                    logger.info(f"Settlement worker: {result}")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Settlement worker error: {e}")
+        await asyncio.sleep(15)
+
+
+@app.on_event("startup")
+async def _start_workers():
+    asyncio.create_task(_webhook_worker())
+    asyncio.create_task(_settlement_worker())

@@ -27,17 +27,19 @@ def create_bounty(
 ) -> dict:
     """Create a new bounty and lock the reward in escrow.
 
-    Auth: JWT or API key.  Soft gate: Artisan (level >= 2).
+    Auth: JWT or API key.  Soft gate: Worker (level >= 1).
     The reward TCK is transferred from the creator's balance into a
     BOUNTY escrow account.
     """
-    # Soft level gate — Artisan (level 2)
-    gate = check_level_gate(node, 2, db)
+    # Soft level gate — Worker (level 1)
+    gate = check_level_gate(node, 1, db)
     if gate:
         raise HTTPException(status_code=403, detail=gate["error"])
 
     reward = Decimal(str(body.reward_tck))
 
+    # M-02 fix: row lock to prevent race condition on balance check
+    node = db.query(models.Node).filter(models.Node.id == node.id).with_for_update().first()
     if node.balance < reward:
         raise HTTPException(status_code=400, detail="Insufficient balance")
 

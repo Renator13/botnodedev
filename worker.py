@@ -62,6 +62,34 @@ def recalculate_cri(node: models.Node, db: Session) -> float:
     gets penalized by: low diversity score (few unique counterparties),
     high concentration penalty (>50% with same nodes), and logarithmic
     TX scaling (100 fake trades ≈ same score as 7 real ones).
+
+    **Academic foundations:**
+
+    Each factor is grounded in published research:
+
+    - Log scaling: Weber-Fechner Law (1860); EigenTrust (Kamvar et al.,
+      Stanford, 2003 — WWW Test of Time Award 2019) proved linear scaling
+      is vulnerable to volume farming.
+    - Diversity: Douceur (Microsoft Research, 2002) proved Sybil attacks
+      are inevitable but can be made economically inviable. Cheng &
+      Friedman (2005) proved systems without diversity penalties are
+      Sybil-exploitable.
+    - Age: Resnick & Zeckhauser (Harvard/Michigan, 2002) established
+      empirically with eBay data that seller tenure predicts behavior.
+      Time is the only non-forgeable factor.
+    - Base score: Schein et al. (2002) on cold-start; EigenTrust
+      "pre-trusted peers" — zero-scored new users create death spirals.
+    - Dispute penalty: Ostrom (Nobel 2009) — graduated sanctions. Axelrod
+      (1984) — tit-for-tat as dominant strategy in iterated games.
+    - Concentration: Herfindahl-Hirschman Index (1945), used by DOJ/EC
+      for market concentration.
+    - Portability: Resnick et al. (2000); W3C Verifiable Credentials
+      (2019).
+    - Systemic resistance: Margolin & Levine (2008); Shi (2025)
+      "Sybil-Resistant Service Discovery for Agent Economies."
+
+    Coefficients are hypotheses; architecture is consensus. See Section
+    8.3 of the whitepaper for full citations.
     """
     import math
     now = _utcnow()
@@ -113,7 +141,7 @@ def recalculate_cri(node: models.Node, db: Session) -> float:
     buyer_score = 5.0 if settled_as_buyer > 0 else 0.0
 
     # ── Positive: Genesis bonus ──────────────────────────────────────
-    genesis_bonus = GENESIS_CRI_FLOOR * 10.0 if node.has_genesis_badge else 0.0
+    genesis_bonus = 10.0 if node.has_genesis_badge else 0.0
 
     # ── Negative: Dispute rate as seller ─────────────────────────────
     total_tasks_as_seller = db.query(models.Task).filter(
@@ -172,6 +200,23 @@ def recalculate_cri(node: models.Node, db: Session) -> float:
     )
     cri = max(0.0, min(100.0, round(raw, 1)))
 
+    # ── Temporal decay: inactivity penalty ────────────────────────
+    # If a node has had no settled transactions in the last 90 days,
+    # the CRI starts decaying linearly.  After 90 days of inactivity
+    # the score loses up to 50% over the following year (365 days),
+    # clamped so the decay factor never goes below 0.5.
+    # Rationale: stale reputations should not carry full weight —
+    # a node that hasn't traded recently is an unknown quantity.
+    last_settled = db.query(func.max(models.Escrow.created_at)).filter(
+        (models.Escrow.seller_id == node.id) | (models.Escrow.buyer_id == node.id),
+        models.Escrow.status == "SETTLED",
+    ).scalar()
+    if last_settled:
+        days_since_last_trade = (now - last_settled).days
+        if days_since_last_trade > 90:
+            decay_factor = max(0.5, 1.0 - (days_since_last_trade - 90) / 365.0)
+            cri = max(0.0, round(cri * decay_factor, 1))
+
     # Apply Genesis CRI floor
     if node.has_genesis_badge and node.first_settled_tx_at and node.strikes < 3:
         protection_end = node.first_settled_tx_at + GENESIS_PROTECTION_WINDOW
@@ -184,11 +229,11 @@ def recalculate_cri(node: models.Node, db: Session) -> float:
 
 
 def apply_cri_floor(node: models.Node) -> None:  # noqa: D401
-    """Apply the 'CRI Floor 1.0' logic for Genesis Nodes.
+    """Apply the CRI Floor logic for Genesis Nodes.
 
-    Rule: If a node has a Genesis Badge, its reputation score cannot drop below 1.0
-    for 180 days after its first settled transaction, unless explicitly slashed
-    (strikes >= 3).
+    Rule: If a node has a Genesis Badge, its reputation score cannot drop below
+    GENESIS_CRI_FLOOR (30.0) for 180 days after its first settled transaction,
+    unless explicitly slashed (strikes >= 3).
 
     This function should be called whenever reputation_score is updated.
     """

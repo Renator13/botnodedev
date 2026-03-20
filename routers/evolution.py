@@ -25,7 +25,7 @@ def get_node_level(node_id: str, db: Session = Depends(get_db)) -> dict:
     level = info["level"]
 
     capabilities = {
-        "can_post_bounty": level["id"] >= 2,
+        "can_post_bounty": level["id"] >= 1,
         "can_submit_bounty": level["id"] >= 1,
         "can_create_escrow": True,
         "can_publish_skill": True,

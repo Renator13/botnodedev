@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 
 import models
 import schemas
-from dependencies import get_db, get_current_node, MCP_CAPABILITIES
+from dependencies import get_db, get_current_node, MCP_CAPABILITIES, _utcnow
+from config import PENDING_ESCROW_TIMEOUT
 from ledger import record_transfer
 
 router = APIRouter(prefix="/v1/mcp", tags=["mcp"])
@@ -67,6 +68,19 @@ def mcp_hire(request_body: schemas.MCPHireRequest, buyer: models.Node = Depends(
 
     price_tck = skill.price_tck
 
+    # Sandbox isolation: prevent cross-realm trades via MCP bridge
+    seller_node = db.query(models.Node).filter(models.Node.id == skill.provider_id).first()
+    if buyer.is_sandbox and seller_node and not seller_node.is_sandbox and skill.provider_id not in ("botnode-official", "house"):
+        return JSONResponse(
+            status_code=403,
+            content={"error_type": "SANDBOX_ISOLATION", "message": "Sandbox nodes cannot trade with production nodes via MCP", "retry_hint": "use_sandbox_skills"},
+        )
+    if not buyer.is_sandbox and seller_node and seller_node.is_sandbox:
+        return JSONResponse(
+            status_code=403,
+            content={"error_type": "SANDBOX_ISOLATION", "message": "Production nodes cannot trade with sandbox nodes via MCP", "retry_hint": "use_production_skills"},
+        )
+
     # Lock buyer row to prevent double-spend
     buyer = db.query(models.Node).filter(models.Node.id == buyer.id).with_for_update().first()
     if buyer.balance < price_tck:
@@ -83,6 +97,7 @@ def mcp_hire(request_body: schemas.MCPHireRequest, buyer: models.Node = Depends(
         seller_id=skill.provider_id,
         amount=price_tck,
         status="PENDING",
+        auto_refund_at=_utcnow() + PENDING_ESCROW_TIMEOUT,
     )
     db.add(new_escrow)
     db.flush()
