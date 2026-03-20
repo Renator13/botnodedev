@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  scheduler:
+    build: .
+    ports:
+      - "8013:8013"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8013/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

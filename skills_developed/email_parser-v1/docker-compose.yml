@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  email_parser:
+    build: .
+    ports:
+      - "8018:8018"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8018/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

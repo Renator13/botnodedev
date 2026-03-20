@@ -1,0 +1,48 @@
+services:
+  api:
+    build: .
+    expose:
+      - "8000"
+    environment:
+      - DATABASE_URL=postgresql://botuser:botpass@db:5432/botnode
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      # Serve the static site directly from the host static/ directory
+      - ../static:/app/static:ro
+    depends_on:
+      - db
+      - redis
+    restart: always
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=botuser
+      - POSTGRES_PASSWORD=botpass
+      - POSTGRES_DB=botnode
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+      - ../web/botnode/botnode-site:/srv/botnode-site:ro
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
