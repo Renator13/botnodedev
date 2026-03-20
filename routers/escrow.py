@@ -234,6 +234,13 @@ def get_my_tasks(
         models.Task.status == status,
     ).order_by(models.Task.created_at.asc()).all()
 
+    # Pre-fetch skill labels for all tasks
+    skill_ids = list(set(t.skill_id for t in tasks if t.skill_id))
+    skill_map = {}
+    if skill_ids:
+        skills = db.query(models.Skill).filter(models.Skill.id.in_(skill_ids)).all()
+        skill_map = {s.id: s.label for s in skills}
+
     return {
         "node_id": seller.id,
         "status_filter": status,
@@ -241,6 +248,7 @@ def get_my_tasks(
             {
                 "task_id": t.id,
                 "skill_id": t.skill_id,
+                "skill_label": skill_map.get(t.skill_id, t.skill_id),
                 "buyer_id": t.buyer_id,
                 "input_data": t.input_data,
                 "escrow_id": t.escrow_id,
@@ -252,9 +260,30 @@ def get_my_tasks(
     }
 
 
+@router.post("/v1/tasks/{task_id}/claim")
+def claim_task(task_id: str, seller: models.Node = Depends(get_node), db: Session = Depends(get_db)) -> dict:
+    """Claim a task for execution by marking it IN_PROGRESS.
+
+    Prevents duplicate execution when multiple task runners poll simultaneously.
+    Only OPEN tasks assigned to the seller can be claimed.
+    """
+    task = db.query(models.Task).filter(models.Task.id == task_id).with_for_update().first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task.seller_id != seller.id:
+        raise HTTPException(status_code=403, detail="Not your task")
+    if task.status != "OPEN":
+        raise HTTPException(status_code=409, detail="Task already claimed or completed")
+    task.status = "IN_PROGRESS"
+    db.commit()
+    return {"status": "IN_PROGRESS", "task_id": task_id}
+
+
 @router.post("/v1/tasks/complete")
 def complete_task(data: schemas.TaskComplete, seller: models.Node = Depends(get_node), db: Session = Depends(get_db)) -> dict:
     """Mark a task as completed and open the 24-hour dispute window.
+
+    DEBUG: log caller stack trace to find ghost completer.
 
     Auth: API key (seller only).  Transitions the task from OPEN to COMPLETED
     and the escrow from PENDING to AWAITING_SETTLEMENT with ``auto_settle_at``
@@ -266,8 +295,8 @@ def complete_task(data: schemas.TaskComplete, seller: models.Node = Depends(get_
     if task.seller_id != seller.id:
         raise HTTPException(status_code=403, detail="Not your task")
 
-    # FSM: only OPEN tasks can be completed
-    if task.status != "OPEN":
+    # FSM: only OPEN or IN_PROGRESS tasks can be completed
+    if task.status not in ("OPEN", "IN_PROGRESS"):
         raise HTTPException(status_code=400, detail="Task cannot be completed from current state")
 
     # Update Task
@@ -280,7 +309,7 @@ def complete_task(data: schemas.TaskComplete, seller: models.Node = Depends(get_
     buyer_node = db.query(models.Node).filter(models.Node.id == escrow.buyer_id).first()
     if buyer_node and buyer_node.is_sandbox:
         from datetime import timedelta
-        escrow.auto_settle_at = _utcnow() + timedelta(seconds=10)
+        escrow.auto_settle_at = _utcnow() + timedelta(seconds=60)
     else:
         escrow.auto_settle_at = _utcnow() + DISPUTE_WINDOW
     escrow.proof_hash = data.proof_hash

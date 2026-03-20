@@ -96,6 +96,7 @@ def poll_and_execute() -> int:
     for task in tasks:
         task_id = task["task_id"]
         skill_id = task["skill_id"]
+        skill_label = task.get("skill_label", skill_id)  # prefer label for MUTHUR
         input_data = task.get("input_data", {})
 
         endpoint = get_skill_endpoint(skill_id)
@@ -103,18 +104,35 @@ def poll_and_execute() -> int:
             logger.warning(f"No endpoint for skill {skill_id} — skipping task {task_id}")
             continue
 
-        logger.info(f"Executing task {task_id} via {endpoint}")
+        logger.info(f"Executing task {task_id} ({skill_label}) via {endpoint}")
+
+        # 2b. Mark task as IN_PROGRESS to prevent duplicate execution
+        try:
+            claim_resp = httpx.post(
+                f"{API_BASE}/v1/tasks/{task_id}/claim",
+                headers=headers,
+                timeout=5,
+            )
+            if claim_resp.status_code != 200:
+                logger.warning(f"Could not claim task {task_id}: {claim_resp.status_code} — skipping (another runner may have it)")
+                continue
+        except Exception:
+            pass  # If claim endpoint doesn't exist, proceed anyway
 
         # 3. Call MUTHUR (routes to container or LLM internally)
+        # MUTHUR identifies skills by label, not UUID
         try:
-            payload = {"skill_id": skill_id, "data": input_data, "input": input_data}
+            payload = {"skill_id": skill_label, "data": input_data, "input": input_data}
+            logger.info(f"MUTHUR call: POST {endpoint} payload_skill={skill_label}")
             skill_resp = httpx.post(
                 endpoint,
                 json=payload,
                 timeout=60,
             )
+            logger.info(f"MUTHUR response: {skill_resp.status_code} body={skill_resp.text[:200]}")
             if skill_resp.status_code == 200:
                 output_data = skill_resp.json()
+                logger.info(f"MUTHUR output keys: {list(output_data.keys()) if isinstance(output_data, dict) else type(output_data)}")
             else:
                 output_data = {
                     "error": f"Skill returned {skill_resp.status_code}",
@@ -125,14 +143,23 @@ def poll_and_execute() -> int:
             logger.error(f"Timeout executing skill {skill_id} for task {task_id}")
         except Exception as e:
             output_data = {"error": f"Skill execution failed: {str(e)}"}
-            logger.error(f"Error executing skill {skill_id}: {e}")
+            logger.error(f"EXCEPTION executing skill {skill_id}: {type(e).__name__}: {e}")
 
-        # 4. Check if skill succeeded — only complete on success
-        is_success = output_data.get("ok", True) if isinstance(output_data, dict) else True
-        has_error = "error" in output_data if isinstance(output_data, dict) else False
+        # 4. Unwrap MUTHUR response — extract the actual skill output
+        # MUTHUR wraps output as {"ok": bool, "result": {...}, "error": str|null, "provider": str, "model": str}
+        if isinstance(output_data, dict) and "result" in output_data:
+            muthur_ok = output_data.get("ok", False)
+            muthur_error = output_data.get("error")
+            if not muthur_ok or muthur_error:
+                logger.warning(f"Task {task_id} MUTHUR error: {muthur_error} — leaving OPEN for auto-refund")
+                continue
+            # Extract the actual skill output from the MUTHUR wrapper
+            output_data = output_data["result"]
+            logger.info(f"Unwrapped MUTHUR result for {task_id}: keys={list(output_data.keys()) if isinstance(output_data, dict) else type(output_data)}")
 
-        if has_error and not is_success:
-            # Skill failed — leave task OPEN, escrow auto-refunds after 72h
+        # Check if skill produced usable output
+        has_error = isinstance(output_data, dict) and output_data.get("error")
+        if has_error:
             logger.warning(f"Task {task_id} skill failed: {output_data.get('error', '?')} — leaving OPEN for auto-refund")
             continue
 
