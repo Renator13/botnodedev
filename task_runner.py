@@ -7,18 +7,21 @@ It runs as a standalone process alongside the API server:
 
 Flow for each iteration:
 1. Query all OPEN tasks where ``seller_id == HOUSE_NODE_ID``
-2. For each task, look up the skill container endpoint
-3. POST the task's ``input_data`` to the container's ``/run`` endpoint
-4. Call the API's ``/v1/tasks/complete`` with the result
-5. Sleep and repeat
+2. Claim the task (mark IN_PROGRESS to prevent duplicate execution)
+3. POST the task's ``input_data`` to MUTHUR's ``/run`` endpoint
+4. Unwrap MUTHUR response (extract result from wrapper)
+5. Call the API's ``/v1/tasks/complete`` with the result
+6. Wait before processing the next task (respect rate limits)
 
-The runner authenticates as the house node using its API key.  Skill
-all skills are routed through MUTHUR (``MUTHUR_URL``).
+The runner authenticates as the house node using its API key.
+All skills are routed through MUTHUR (``MUTHUR_URL``).
 
 Environment variables:
     HOUSE_NODE_API_KEY   — API key for the botnode-official house node
     TASK_RUNNER_INTERVAL — seconds between poll cycles (default: 5)
-    SKILL_BASE_URL       — override base URL for skill containers
+    MUTHUR_URL           — MUTHUR gateway URL (default: http://localhost:8090)
+    TASK_DELAY           — seconds between tasks in the same batch (default: 3)
+    MAX_RETRIES          — max retries per task on MUTHUR failure (default: 3)
 """
 
 import os
@@ -44,15 +47,12 @@ API_BASE = os.getenv("API_BASE_URL", "http://localhost:8000")
 HOUSE_NODE_API_KEY = os.getenv("HOUSE_NODE_API_KEY", "")
 POLL_INTERVAL = int(os.getenv("TASK_RUNNER_INTERVAL", "5"))
 MUTHUR_URL = os.getenv("MUTHUR_URL", "http://localhost:8090")
+TASK_DELAY = int(os.getenv("TASK_DELAY", "3"))
+MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))
 
 
 def get_skill_endpoint(skill_id: str) -> str:
-    """Return the MUTHUR /run URL.  Always.
-
-    MUTHUR is the single point of entry for ALL skills — it decides
-    whether to proxy to a container or call an LLM.  The Task Runner
-    doesn't need to know the difference.
-    """
+    """Return the MUTHUR /run URL. Always."""
     return f"{MUTHUR_URL}/run"
 
 
@@ -60,19 +60,133 @@ def get_skill_endpoint(skill_id: str) -> str:
 # Core loop
 # ---------------------------------------------------------------------------
 
-def poll_and_execute() -> int:
-    """Poll for OPEN tasks assigned to the house node and execute them.
+def execute_single_task(task: dict, headers: dict) -> bool:
+    """Execute a single task. Returns True if completed successfully."""
+    task_id = task["task_id"]
+    skill_id = task["skill_id"]
+    skill_label = task.get("skill_label", skill_id)
+    input_data = task.get("input_data", {})
+    endpoint = get_skill_endpoint(skill_id)
 
-    Returns the number of tasks successfully completed this cycle.
-    """
+    logger.info(f"Processing task {task_id} ({skill_label})")
+
+    # 1. Claim the task (mark IN_PROGRESS)
+    try:
+        claim_resp = httpx.post(
+            f"{API_BASE}/v1/tasks/{task_id}/claim",
+            headers=headers,
+            timeout=5,
+        )
+        if claim_resp.status_code != 200:
+            logger.warning(f"Cannot claim {task_id}: {claim_resp.status_code} — skipping")
+            return False
+    except Exception as e:
+        logger.warning(f"Claim failed for {task_id}: {e} — skipping")
+        return False
+
+    # 2. Call MUTHUR with retry
+    output_data = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            payload = {"skill_id": skill_label, "data": input_data, "input": input_data}
+            logger.info(f"MUTHUR attempt {attempt}/{MAX_RETRIES} for {skill_label}")
+
+            skill_resp = httpx.post(endpoint, json=payload, timeout=90)
+
+            if skill_resp.status_code == 200:
+                raw = skill_resp.json()
+
+                # Unwrap MUTHUR response
+                if isinstance(raw, dict) and "result" in raw:
+                    muthur_ok = raw.get("ok", False)
+                    muthur_error = raw.get("error")
+
+                    if not muthur_ok or muthur_error:
+                        logger.warning(f"MUTHUR error on attempt {attempt}: {muthur_error}")
+                        if attempt < MAX_RETRIES:
+                            wait = attempt * 5
+                            logger.info(f"Waiting {wait}s before retry...")
+                            time.sleep(wait)
+                            continue
+                        else:
+                            logger.error(f"All {MAX_RETRIES} attempts failed for {task_id}")
+                            return False
+
+                    output_data = raw["result"]
+                    logger.info(f"MUTHUR success: keys={list(output_data.keys()) if isinstance(output_data, dict) else type(output_data)}")
+                    break
+                else:
+                    output_data = raw
+                    break
+
+            elif skill_resp.status_code == 429:
+                # Rate limited — wait and retry
+                wait = attempt * 10
+                logger.warning(f"Rate limited (429) on attempt {attempt}. Waiting {wait}s...")
+                time.sleep(wait)
+                continue
+            else:
+                logger.error(f"MUTHUR returned {skill_resp.status_code}: {skill_resp.text[:200]}")
+                if attempt < MAX_RETRIES:
+                    time.sleep(attempt * 5)
+                    continue
+                return False
+
+        except httpx.TimeoutException:
+            logger.error(f"Timeout on attempt {attempt} for {task_id}")
+            if attempt < MAX_RETRIES:
+                time.sleep(attempt * 5)
+                continue
+            return False
+        except Exception as e:
+            logger.error(f"Exception on attempt {attempt}: {type(e).__name__}: {e}")
+            if attempt < MAX_RETRIES:
+                time.sleep(attempt * 3)
+                continue
+            return False
+
+    if not output_data:
+        logger.error(f"No output for {task_id} after {MAX_RETRIES} attempts")
+        return False
+
+    # Check for error in output
+    if isinstance(output_data, dict) and output_data.get("error"):
+        logger.warning(f"Skill returned error for {task_id}: {output_data['error']}")
+        return False
+
+    # 3. Complete the task
+    proof = hashlib.sha256(json.dumps(output_data, sort_keys=True).encode()).hexdigest()
+    try:
+        complete_resp = httpx.post(
+            f"{API_BASE}/v1/tasks/complete",
+            headers=headers,
+            json={
+                "task_id": task_id,
+                "output_data": output_data,
+                "proof_hash": proof,
+            },
+            timeout=10,
+        )
+        if complete_resp.status_code == 200:
+            logger.info(f"Task {task_id} completed successfully")
+            return True
+        else:
+            logger.error(f"Complete failed for {task_id}: {complete_resp.status_code} {complete_resp.text[:200]}")
+            return False
+    except Exception as e:
+        logger.error(f"Error completing {task_id}: {e}")
+        return False
+
+
+def poll_and_execute() -> int:
+    """Poll for OPEN tasks and execute them one by one with pacing."""
     if not HOUSE_NODE_API_KEY:
-        logger.error("HOUSE_NODE_API_KEY not set — cannot authenticate as house node")
+        logger.error("HOUSE_NODE_API_KEY not set")
         return 0
 
     headers = {"X-API-KEY": HOUSE_NODE_API_KEY}
-    completed = 0
 
-    # 1. Poll for OPEN tasks
+    # Poll for OPEN tasks
     try:
         resp = httpx.get(
             f"{API_BASE}/v1/tasks/mine?status=OPEN",
@@ -80,7 +194,6 @@ def poll_and_execute() -> int:
             timeout=10,
         )
         if resp.status_code != 200:
-            logger.warning(f"Poll failed: {resp.status_code} {resp.text[:200]}")
             return 0
         tasks = resp.json().get("tasks", [])
     except Exception as e:
@@ -90,107 +203,25 @@ def poll_and_execute() -> int:
     if not tasks:
         return 0
 
-    logger.info(f"Found {len(tasks)} OPEN task(s)")
+    logger.info(f"Found {len(tasks)} OPEN task(s) — processing one by one")
 
-    # 2. Execute each task
-    for task in tasks:
-        task_id = task["task_id"]
-        skill_id = task["skill_id"]
-        skill_label = task.get("skill_label", skill_id)  # prefer label for MUTHUR
-        input_data = task.get("input_data", {})
+    completed = 0
+    for i, task in enumerate(tasks):
+        success = execute_single_task(task, headers)
+        if success:
+            completed += 1
 
-        endpoint = get_skill_endpoint(skill_id)
-        if not endpoint:
-            logger.warning(f"No endpoint for skill {skill_id} — skipping task {task_id}")
-            continue
-
-        logger.info(f"Executing task {task_id} ({skill_label}) via {endpoint}")
-
-        # 2b. Mark task as IN_PROGRESS to prevent duplicate execution
-        try:
-            claim_resp = httpx.post(
-                f"{API_BASE}/v1/tasks/{task_id}/claim",
-                headers=headers,
-                timeout=5,
-            )
-            if claim_resp.status_code != 200:
-                logger.warning(f"Could not claim task {task_id}: {claim_resp.status_code} — skipping (another runner may have it)")
-                continue
-        except Exception:
-            pass  # If claim endpoint doesn't exist, proceed anyway
-
-        # 3. Call MUTHUR (routes to container or LLM internally)
-        # MUTHUR identifies skills by label, not UUID
-        try:
-            payload = {"skill_id": skill_label, "data": input_data, "input": input_data}
-            logger.info(f"MUTHUR call: POST {endpoint} payload_skill={skill_label}")
-            skill_resp = httpx.post(
-                endpoint,
-                json=payload,
-                timeout=60,
-            )
-            logger.info(f"MUTHUR response: {skill_resp.status_code} body={skill_resp.text[:200]}")
-            if skill_resp.status_code == 200:
-                output_data = skill_resp.json()
-                logger.info(f"MUTHUR output keys: {list(output_data.keys()) if isinstance(output_data, dict) else type(output_data)}")
-            else:
-                output_data = {
-                    "error": f"Skill returned {skill_resp.status_code}",
-                    "details": skill_resp.text[:500],
-                }
-        except httpx.TimeoutException:
-            output_data = {"error": "Skill execution timed out"}
-            logger.error(f"Timeout executing skill {skill_id} for task {task_id}")
-        except Exception as e:
-            output_data = {"error": f"Skill execution failed: {str(e)}"}
-            logger.error(f"EXCEPTION executing skill {skill_id}: {type(e).__name__}: {e}")
-
-        # 4. Unwrap MUTHUR response — extract the actual skill output
-        # MUTHUR wraps output as {"ok": bool, "result": {...}, "error": str|null, "provider": str, "model": str}
-        if isinstance(output_data, dict) and "result" in output_data:
-            muthur_ok = output_data.get("ok", False)
-            muthur_error = output_data.get("error")
-            if not muthur_ok or muthur_error:
-                logger.warning(f"Task {task_id} MUTHUR error: {muthur_error} — leaving OPEN for auto-refund")
-                continue
-            # Extract the actual skill output from the MUTHUR wrapper
-            output_data = output_data["result"]
-            logger.info(f"Unwrapped MUTHUR result for {task_id}: keys={list(output_data.keys()) if isinstance(output_data, dict) else type(output_data)}")
-
-        # Check if skill produced usable output
-        has_error = isinstance(output_data, dict) and output_data.get("error")
-        if has_error:
-            logger.warning(f"Task {task_id} skill failed: {output_data.get('error', '?')} — leaving OPEN for auto-refund")
-            continue
-
-        # 5. Complete the task via API
-        proof = hashlib.sha256(json.dumps(output_data, sort_keys=True).encode()).hexdigest()
-
-        try:
-            complete_resp = httpx.post(
-                f"{API_BASE}/v1/tasks/complete",
-                headers=headers,
-                json={
-                    "task_id": task_id,
-                    "output_data": output_data,
-                    "proof_hash": proof,
-                },
-                timeout=10,
-            )
-            if complete_resp.status_code == 200:
-                logger.info(f"Task {task_id} completed successfully")
-                completed += 1
-            else:
-                logger.error(f"Complete failed for {task_id}: {complete_resp.status_code} {complete_resp.text[:200]}")
-        except Exception as e:
-            logger.error(f"Error completing task {task_id}: {e}")
+        # Pace between tasks to respect MUTHUR rate limits
+        if i < len(tasks) - 1:
+            logger.info(f"Pacing: waiting {TASK_DELAY}s before next task...")
+            time.sleep(TASK_DELAY)
 
     return completed
 
 
 def main() -> None:
     """Run the task runner loop."""
-    logger.info(f"Task Runner starting (poll interval: {POLL_INTERVAL}s, API: {API_BASE})")
+    logger.info(f"Task Runner starting (poll={POLL_INTERVAL}s, delay={TASK_DELAY}s, retries={MAX_RETRIES}, MUTHUR={MUTHUR_URL})")
 
     if not HOUSE_NODE_API_KEY:
         logger.critical("HOUSE_NODE_API_KEY is required. Set it in .env and restart.")
@@ -200,12 +231,12 @@ def main() -> None:
         try:
             completed = poll_and_execute()
             if completed:
-                logger.info(f"Cycle complete: {completed} task(s) executed")
+                logger.info(f"Cycle: {completed} task(s) completed")
         except KeyboardInterrupt:
-            logger.info("Task Runner stopped by user")
+            logger.info("Stopped by user")
             break
         except Exception as e:
-            logger.error(f"Unexpected error in main loop: {e}")
+            logger.error(f"Main loop error: {e}")
 
         time.sleep(POLL_INTERVAL)
 
