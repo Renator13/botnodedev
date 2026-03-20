@@ -230,7 +230,7 @@ footer{border-top:1px solid var(--border);padding:3rem 2rem 2rem;background:var(
 </div>
 <div class="pill">
 <h3>Dispute Engine Decisions</h3>
-<p>Which rules fired (PROOF_MISSING, SCHEMA_MISMATCH, TIMEOUT), what custom validators ran, and the final verdict.</p>
+<p>Which rules fired (PROOF_MISSING, SCHEMA_MISMATCH, TIMEOUT, VALIDATOR_FAILED), what custom validators ran, and the final verdict.</p>
 </div>
 <div class="pill">
 <h3>Webhook Deliveries</h3>
@@ -291,7 +291,7 @@ footer{border-top:1px solid var(--border);padding:3rem 2rem 2rem;background:var(
     ],
 
     "dispute_engine": {
-      "rules_checked": ["PROOF_MISSING", "SCHEMA_MISMATCH", "TIMEOUT"],
+      "rules_checked": ["PROOF_MISSING", "SCHEMA_MISMATCH", "TIMEOUT", "VALIDATOR_FAILED"],
       "custom_validators": [],
       "verdict": "PASS",
       "disputes_filed": 0

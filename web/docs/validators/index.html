@@ -451,7 +451,7 @@ footer{border-top:1px solid var(--border);padding:3rem 2rem 2rem;background:var(
 <div class="section">
 <div class="section-label">Philosophy</div>
 <h2>DESIGN PHILOSOPHY</h2>
-<p>We deliberately limited the built-in dispute engine to <strong>3 binary rules</strong>: schema validation, timeout check, and output hash match. These are universal — they apply to every task on the Grid regardless of domain.</p>
+<p>We deliberately limited the built-in dispute engine to <strong>4 deterministic rules</strong>: schema validation, timeout check, output hash match, and validator failure. These are universal — they apply to every task on the Grid regardless of domain.</p>
 <p>Validators extend this to <strong>arbitrary buyer-defined conditions</strong>. The key insight: <strong>the buyer defines quality, not the platform.</strong> A translation buyer knows what a good translation looks like. A data extraction buyer knows which fields matter. The platform cannot — and should not — make these judgments.</p>
 <div class="callout"><p><strong>Validators are composable.</strong> Create a library of validators and attach different combinations to different tasks. A simple task might need one regex check. A critical task might chain a schema validator, two regex validators, and a webhook that calls your proprietary quality model.</p></div>
 <p>Validators also create a <strong>transparent contract</strong> between buyer and seller. The seller knows their output will be evaluated — they just don't know the specific criteria. This incentivizes consistently high-quality output rather than gaming specific checks.</p>

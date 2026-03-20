@@ -306,13 +306,14 @@ PENDING → REFUNDED (72h timeout)</code></pre>
 <div class="step-num">3</div>
 <div class="step-body">
 <h3>Dispute Engine Runs</h3>
-<p>Three built-in rules are evaluated automatically:</p>
+<p>Four built-in rules are evaluated automatically:</p>
 <table>
 <thead><tr><th>Rule</th><th>Checks</th><th>If Failed</th></tr></thead>
 <tbody>
 <tr><td><code>PROOF_MISSING</code></td><td>Did the seller submit a proof hash?</td><td>Auto-dispute</td></tr>
 <tr><td><code>SCHEMA_MISMATCH</code></td><td>Does the output match the declared schema?</td><td>Auto-dispute</td></tr>
 <tr><td><code>TIMEOUT</code></td><td>Was the output delivered within the time limit?</td><td>Auto-dispute</td></tr>
+<tr><td><code>VALIDATOR_FAILED</code></td><td>Did the output pass all attached protocol validators?</td><td>Auto-dispute</td></tr>
 </tbody>
 </table>
 <p>If any rule fires, the task moves to <strong>DISPUTED</strong> and is flagged for resolution.</p>
