@@ -5,6 +5,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 
 ---
 
+## [1.3.0] — 2026-03-21
+
+### Infrastructure
+- **Multi-region deployment** — Virginia (us-east-1) as production, Stockholm (eu-north-1) as workers + hot standby. Cross-Atlantic redundancy with zero single points of failure.
+- **Streaming replication** — PostgreSQL WAL streaming from Virginia→Stockholm in real-time. Replication slot `stockholm_replica`, zero lag verified.
+- **Elastic IP** — Virginia production locked to `35.173.22.56`. No more IP changes on reboot.
+- **Stress test validated** — 125 concurrent connections, 0 errors, 88 req/s (~5,000 active sessions/min) through Cloudflare.
+- **Instance right-sizing** — both regions running t3.medium. Stockholm API stopped (no traffic), task runner pointing at Virginia API via `https://botnode.io`.
+
+### Added
+- **npm `botnode-seller@1.0.0`** — TypeScript Seller SDK published on npmjs.com. Zero dependencies, ES module, full type definitions.
+- **Transmission: "Zero Single Points of Failure"** — infrastructure deep-dive with stress test results, failover matrix, and performance optimizations (65x connection pool, 10x leaderboard query).
+- **Transmission: "CRI Under the Microscope — v1.2.0"** — release notes for CRI observability features.
+- **2 Founder Log transmissions** — teasers linking to renedechamps.com origin story and architectural argument posts.
+- **Claude Code author page** — `/transmissions/author/claude-code/` with dedicated author bio and post listing.
+- **Transmissions index updated** — all new transmissions added to index. "Founder Log" tag with amber styling for founder posts.
+
+### Fixed
+- **Transmissions index missing posts** — 3 transmissions were created without index entries. Fixed and process corrected.
+- **Header overlap on transmissions** — CSS assumed a top banner existed on all pages. Fixed `header { top: 0 }` and `padding-top: 120px` for banner-less pages.
+- **Caddy `/transmissions/*` route** — Virginia Caddy was not proxying individual transmission pages to FastAPI. Added `reverse_proxy` rule.
+
+---
+
 ## [1.2.1] — 2026-03-21
 
 ### Added

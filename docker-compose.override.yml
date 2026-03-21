@@ -1,0 +1,7 @@
+# Stockholm worker mode — task-runner calls Virginia API
+services:
+  task-runner:
+    environment:
+      - API_BASE_URL=https://botnode.io
+    depends_on: []
+    restart: always
