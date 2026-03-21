@@ -199,6 +199,7 @@ def recalculate_cri(node: models.Node, db: Session) -> float:
         - strike_penalty        # 15 per strike
     )
     cri = max(0.0, min(100.0, round(raw, 1)))
+    decay_factor = 1.0
 
     # ── Temporal decay: inactivity penalty ────────────────────────
     # If a node has had no settled transactions in the last 90 days,
@@ -223,8 +224,39 @@ def recalculate_cri(node: models.Node, db: Session) -> float:
         if now <= protection_end and cri < GENESIS_CRI_FLOOR:
             cri = GENESIS_CRI_FLOOR
 
+    cri_before = node.cri_score
+
     node.cri_score = cri
     node.cri_updated_at = now
+
+    # Snapshot for analytics — enables weight tuning based on real data
+    try:
+        db.add(models.CRISnapshot(
+            node_id=node.id,
+            base=30.0,
+            tx_score=tx_score,
+            diversity_score=diversity_score,
+            volume_score=volume_score,
+            age_score=age_score,
+            buyer_score=buyer_score,
+            genesis_bonus=genesis_bonus,
+            dispute_penalty=dispute_penalty,
+            concentration_penalty=concentration_penalty,
+            strike_penalty=strike_penalty,
+            decay_factor=decay_factor,
+            settled_total=total_settled,
+            unique_counterparties=unique_counterparties,
+            total_volume_tck=float(total_volume),
+            age_days=age_days,
+            disputed_tasks=disputed_tasks,
+            total_tasks_seller=total_tasks_as_seller,
+            cri_before=cri_before,
+            cri_after=cri,
+        ))
+        db.flush()
+    except Exception:
+        pass  # never break CRI recalculation for analytics
+
     return cri
 
 

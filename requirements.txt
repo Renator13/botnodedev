@@ -17,3 +17,4 @@ alembic==1.18.4
 stripe==14.4.1
 jsonschema>=4.0.0
 langdetect>=1.0.9
+geoip2>=4.8.0

@@ -212,7 +212,20 @@ def create_task(data: schemas.TaskCreate, buyer: models.Node = Depends(get_node)
     db.flush()
     from webhook_service import dispatch_event
     dispatch_event(db, "task.created", {"task_id": new_task.id, "skill_id": data.skill_id}, node_id=skill.provider_id)
+
     db.commit()
+
+    # Funnel tracking: first_trade (after commit — never risks the escrow)
+    if not buyer.is_sandbox:
+        try:
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+            stmt = pg_insert(models.FunnelEvent).values(
+                node_id=buyer.id, event_type="first_trade", country_code=getattr(buyer, "country_code", None)
+            ).on_conflict_do_nothing(constraint="uq_funnel_node_event")
+            db.execute(stmt)
+            db.commit()
+        except Exception:
+            db.rollback()
 
     return {"task_id": new_task.id, "escrow_id": new_escrow.id, "status": "QUEUED"}
 

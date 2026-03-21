@@ -50,12 +50,18 @@ def create_sandbox_node(request: Request, req: SandboxRequest, db: Session = Dep
     api_key = f"bn_{node_id}_{raw_secret}"
     api_key_hash = pwd_context.hash(raw_secret)
 
+    from geoip import resolve_country
+    cc, cn = resolve_country(request.client.host)
+
     node = models.Node(
         id=node_id,
         api_key_hash=api_key_hash,
+        ip_address=request.client.host,
         balance=Decimal("0"),
         cri_score=50.0,
         is_sandbox=True,
+        country_code=cc,
+        country_name=cn,
     )
     db.add(node)
     db.flush()
@@ -66,6 +72,13 @@ def create_sandbox_node(request: Request, req: SandboxRequest, db: Session = Dep
         "REGISTRATION_CREDIT", node_id,
         to_node=node, note="sandbox_init",
     )
+
+    # Funnel tracking: sandbox_trade event
+    try:
+        db.add(models.FunnelEvent(node_id=node_id, event_type="sandbox_trade", ip_fingerprint=request.client.host, country_code=cc))
+        db.flush()
+    except Exception:
+        pass
 
     db.commit()
 

@@ -303,7 +303,26 @@ async def _settlement_worker():
         await asyncio.sleep(15)
 
 
+async def _analytics_worker():
+    """Background worker that builds daily_active_nodes snapshots every hour."""
+    await asyncio.sleep(60)  # Wait 1 min after startup
+    while True:
+        try:
+            db = _database.SessionLocal()
+            try:
+                from analytics_worker import build_daily_snapshot
+                result = build_daily_snapshot(db)
+                if result.get("rows"):
+                    logger.info(f"Analytics worker: {result}")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Analytics worker error: {e}")
+        await asyncio.sleep(3600)
+
+
 @app.on_event("startup")
 async def _start_workers():
     asyncio.create_task(_webhook_worker())
     asyncio.create_task(_settlement_worker())
+    asyncio.create_task(_analytics_worker())

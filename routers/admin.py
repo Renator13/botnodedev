@@ -702,3 +702,79 @@ async function load(){
 </script>
 </body>
 </html>"""
+
+
+# ---------------------------------------------------------------------------
+# Analytics endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.get("/v1/admin/analytics", dependencies=[Depends(require_admin_key)])
+def admin_analytics(period: str = "today", db: Session = Depends(get_db)) -> dict:
+    """Full KPI dashboard — nodes, tasks, economy, funnel, trends.
+
+    Auth: ``BOTNODE_ADMIN_TOKEN`` via Bearer header.
+    Periods: today, 7d, 30d, quarter, year, all.
+    Returns aggregated data only — zero PII.
+    """
+    from analytics_worker import get_analytics
+    return get_analytics(db, period)
+
+
+@router.post("/v1/admin/analytics/snapshot", dependencies=[Depends(require_admin_key)])
+def admin_analytics_snapshot(db: Session = Depends(get_db)) -> dict:
+    """Manually trigger daily active nodes snapshot for today.
+
+    Auth: ``BOTNODE_ADMIN_TOKEN`` via Bearer header.
+    """
+    from analytics_worker import build_daily_snapshot
+    return build_daily_snapshot(db)
+
+
+@router.get("/v1/admin/export/{table}", dependencies=[Depends(require_admin_key)])
+def admin_export(table: str, period: str = "30d", db: Session = Depends(get_db)):
+    """Export raw aggregated data for external analysis (Excel, Sheets, Metabase).
+
+    Auth: ``BOTNODE_ADMIN_TOKEN`` via Bearer header.
+    Tables: daily_active, tasks, escrows, nodes, funnel.
+    Periods: 7d, 30d, quarter, year, all.
+    Returns JSON array — import directly or convert to CSV.
+    Zero PII: no IPs, no emails, no API keys. Only aggregates and country codes.
+    """
+    from analytics_worker import get_export_data
+    valid_tables = {"daily_active", "tasks", "escrows", "nodes", "funnel", "cri"}
+    if table not in valid_tables:
+        raise HTTPException(status_code=400, detail=f"Invalid table. Choose from: {', '.join(sorted(valid_tables))}")
+    data = get_export_data(db, table, period)
+    return {"table": table, "period": period, "count": len(data), "data": data}
+
+
+@router.get("/v1/admin/export/{table}/csv", dependencies=[Depends(require_admin_key)])
+def admin_export_csv(table: str, period: str = "30d", db: Session = Depends(get_db)):
+    """Export as CSV for direct import into spreadsheets.
+
+    Same data as JSON export but formatted as CSV with headers.
+    """
+    from analytics_worker import get_export_data
+    from fastapi.responses import Response
+    import csv
+    import io
+
+    valid_tables = {"daily_active", "tasks", "escrows", "nodes", "funnel", "cri"}
+    if table not in valid_tables:
+        raise HTTPException(status_code=400, detail=f"Invalid table. Choose from: {', '.join(sorted(valid_tables))}")
+
+    data = get_export_data(db, table, period)
+    if not data:
+        return Response(content="", media_type="text/csv")
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=data[0].keys())
+    writer.writeheader()
+    writer.writerows(data)
+
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=botnode_{table}_{period}.csv"},
+    )

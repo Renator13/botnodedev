@@ -20,7 +20,7 @@ floating-point rounding.  Timestamps default to ``func.now()`` (DB-side)
 so they are set even for raw SQL inserts.
 """
 
-from sqlalchemy import Column, String, Integer, Float, Boolean, Numeric, ForeignKey, DateTime, JSON, func, CheckConstraint
+from sqlalchemy import Column, String, Integer, Float, Boolean, Numeric, ForeignKey, DateTime, Date, JSON, func, CheckConstraint, UniqueConstraint
 from sqlalchemy.orm import relationship, DeclarativeBase
 import datetime
 from datetime import timezone
@@ -54,6 +54,10 @@ class Node(Base):
 
     # Sandbox
     is_sandbox = Column(Boolean, default=False, index=True)
+
+    # GeoIP (resolved at registration — country only, no PII)
+    country_code = Column(String(2), nullable=True, index=True)
+    country_name = Column(String(100), nullable=True)
 
     # Canary mode — exposure caps (nullable = no cap)
     max_spend_daily = Column(Numeric(12, 2), nullable=True)
@@ -349,3 +353,86 @@ class Job(Base):
     result = Column(JSON, nullable=True)
     error = Column(String, nullable=True)
     queue_position = Column(Integer, nullable=True)
+
+
+class DailyActiveNodes(Base):
+    """Materialized daily snapshot of node activity for analytics.
+
+    Populated by the analytics worker once per hour. One row per
+    (date, node_id) pair. Aggregates are pre-computed so dashboard
+    queries hit this table instead of scanning tasks/escrows.
+    """
+    __tablename__ = "daily_active_nodes"
+    __table_args__ = (
+        UniqueConstraint("date", "node_id", name="uq_daily_active_date_node"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    date = Column(Date, nullable=False, index=True)
+    node_id = Column(String, ForeignKey("nodes.id"), nullable=False, index=True)
+    is_sandbox = Column(Boolean, default=False)
+    country_code = Column(String(2), nullable=True, index=True)
+    tasks_created = Column(Integer, default=0)
+    tasks_completed = Column(Integer, default=0)
+    tck_spent = Column(Numeric(12, 2), default=0)
+    tck_earned = Column(Numeric(12, 2), default=0)
+
+
+class FunnelEvent(Base):
+    """Tracks conversion funnel: sandbox_trade → register → first_trade.
+
+    One row per event. Deduped by (node_id, event_type).
+    IP fingerprint links sandbox sessions to later registrations.
+    """
+    __tablename__ = "funnel_events"
+    __table_args__ = (
+        UniqueConstraint("node_id", "event_type", name="uq_funnel_node_event"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    node_id = Column(String, nullable=False, index=True)
+    event_type = Column(String(30), nullable=False, index=True)  # sandbox_trade, register, first_trade
+    ip_fingerprint = Column(String, nullable=True, index=True)  # links sandbox → register
+    country_code = Column(String(2), nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), index=True)
+
+
+class CRISnapshot(Base):
+    """Records every CRI recalculation with individual component scores.
+
+    Enables analysis of how each factor contributes to the final CRI,
+    so weights can be tuned based on real data. One row per recalculation.
+    No PII — only node_id, scores, and timestamp.
+    """
+    __tablename__ = "cri_snapshots"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    node_id = Column(String, ForeignKey("nodes.id"), nullable=False, index=True)
+    calculated_at = Column(DateTime, server_default=func.now(), index=True)
+
+    # Positive components (weighted values)
+    base = Column(Float, default=30.0)
+    tx_score = Column(Float, default=0.0)
+    diversity_score = Column(Float, default=0.0)
+    volume_score = Column(Float, default=0.0)
+    age_score = Column(Float, default=0.0)
+    buyer_score = Column(Float, default=0.0)
+    genesis_bonus = Column(Float, default=0.0)
+
+    # Negative components
+    dispute_penalty = Column(Float, default=0.0)
+    concentration_penalty = Column(Float, default=0.0)
+    strike_penalty = Column(Float, default=0.0)
+
+    # Decay and inputs
+    decay_factor = Column(Float, default=1.0)
+    settled_total = Column(Integer, default=0)
+    unique_counterparties = Column(Integer, default=0)
+    total_volume_tck = Column(Float, default=0.0)
+    age_days = Column(Integer, default=0)
+    disputed_tasks = Column(Integer, default=0)
+    total_tasks_seller = Column(Integer, default=0)
+
+    # Final score
+    cri_before = Column(Float)
+    cri_after = Column(Float)

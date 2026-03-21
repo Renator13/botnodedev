@@ -137,10 +137,15 @@ def verify_node(data: schemas.VerifyRequest, request: Request, db: Session = Dep
     raw_api_key = f"bn_{data.node_id}_{secret}"
     hashed_secret = pwd_context.hash(secret)
 
+    from geoip import resolve_country
+    cc, cn = resolve_country(request.client.host)
+
     new_node = models.Node(
         id=data.node_id,
         api_key_hash=hashed_secret,
         ip_address=request.client.host,
+        country_code=cc,
+        country_name=cn,
         balance=Decimal("0"),
         signup_token=data.signup_token if getattr(data, "signup_token", None) else None,
     )
@@ -149,6 +154,13 @@ def verify_node(data: schemas.VerifyRequest, request: Request, db: Session = Dep
 
     # Mint initial balance through the ledger so books balance from day zero
     record_transfer(db, MINT, new_node.id, INITIAL_NODE_BALANCE, "REGISTRATION_CREDIT", new_node.id, to_node=new_node)
+
+    # Funnel tracking: register event
+    try:
+        db.add(models.FunnelEvent(node_id=new_node.id, event_type="register", ip_fingerprint=request.client.host, country_code=cc))
+        db.flush()
+    except Exception:
+        pass  # unique constraint — already tracked
 
     # If we have a valid signup_token, link the EarlyAccessSignup to this node
     if signup is not None:
