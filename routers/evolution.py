@@ -47,32 +47,60 @@ def get_node_level(node_id: str, db: Session = Depends(get_db)) -> dict:
 def get_leaderboard(limit: int = 20, offset: int = 0, db: Session = Depends(get_db)) -> dict:
     """Top nodes by level and TCK spent.
 
-    Queries all active nodes, computes TCK spent for each, and returns
-    the top N sorted by tck_spent descending.  Includes level info for
-    each entry.
+    Single aggregated query instead of N+1.  Returns top N nodes
+    sorted by tck_spent descending with level info.
     """
+    from sqlalchemy import func as sqlfunc, case, literal
+    from config import LEVELS
+
     limit = min(limit, 100)
-    nodes = db.query(models.Node).filter(models.Node.active.is_(True)).all()
+    spent_types = ('ESCROW_LOCK', 'LISTING_FEE', 'BOUNTY_HOLD')
+
+    # Single query: join nodes with aggregated ledger spend
+    spent_sub = db.query(
+        models.LedgerEntry.account_id,
+        sqlfunc.coalesce(sqlfunc.sum(models.LedgerEntry.amount), 0).label("tck_spent"),
+    ).filter(
+        models.LedgerEntry.entry_type == "DEBIT",
+        models.LedgerEntry.reference_type.in_(spent_types),
+    ).group_by(models.LedgerEntry.account_id).subquery()
+
+    rows = db.query(
+        models.Node.id,
+        models.Node.cri_score,
+        models.Node.has_genesis_badge,
+        sqlfunc.coalesce(spent_sub.c.tck_spent, 0).label("tck_spent"),
+    ).outerjoin(
+        spent_sub, models.Node.id == spent_sub.c.account_id
+    ).filter(
+        models.Node.active.is_(True)
+    ).order_by(
+        sqlfunc.coalesce(spent_sub.c.tck_spent, 0).desc()
+    ).offset(offset).limit(limit).all()
+
+    total = db.query(sqlfunc.count(models.Node.id)).filter(models.Node.active.is_(True)).scalar()
 
     entries = []
-    for node in nodes:
-        info = _compute_node_level(node, db)
+    for row in rows:
+        tck_spent = float(row.tck_spent)
+        cri = float(row.cri_score) if row.cri_score else 0.0
+        level = LEVELS[0]
+        for lvl in LEVELS:
+            if tck_spent >= lvl["tck_spent"] and cri >= lvl["cri_min"]:
+                level = lvl
         entries.append({
-            "node_id": node.id,
-            "level_id": info["level"]["id"],
-            "level_name": info["level"]["name"],
-            "emoji": info["level"]["emoji"],
-            "tck_spent": info["tck_spent"],
-            "cri": info["cri"],
-            "has_genesis_badge": node.has_genesis_badge,
+            "node_id": row.id,
+            "level_id": level["id"],
+            "level_name": level["name"],
+            "emoji": level["emoji"],
+            "tck_spent": round(tck_spent, 2),
+            "cri": cri,
+            "has_genesis_badge": row.has_genesis_badge or False,
         })
 
-    entries.sort(key=lambda e: e["tck_spent"], reverse=True)
-    page = entries[offset:offset + limit]
-
     return {
-        "leaderboard": page,
-        "total": len(entries),
+        "leaderboard": entries,
+        "total": total,
         "limit": limit,
         "offset": offset,
     }
