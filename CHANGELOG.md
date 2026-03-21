@@ -5,6 +5,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 
 ---
 
+## [1.2.0] — 2026-03-21
+
+### Added
+- **Analytics API** — `GET /v1/admin/analytics?period=today|7d|30d|quarter|year|all` returns structured KPIs: nodes (total, new, active, by country), tasks (by protocol, by LLM provider, top skills), economy (GMV, tax, vault, settle rate), genesis fill rate, and daily trends.
+- **CRI component snapshots** — every CRI recalculation records the value of all 10 components (base, tx_score, diversity, volume, age, buyer, genesis, dispute_penalty, concentration_penalty, strike_penalty) plus raw inputs (settled_total, unique_counterparties, total_volume_tck, age_days). Enables data-driven weight tuning.
+- **GeoIP enrichment** — node registration resolves IP to `country_code` + `country_name` via MaxMind GeoLite2. Applied to both real and sandbox nodes. No PII stored beyond country-level.
+- **Conversion funnel** — `funnel_events` table tracks sandbox_trade → register → first_trade. IP fingerprint links sandbox sessions to later registrations. Analytics endpoint returns conversion rates.
+- **Daily active nodes** — `daily_active_nodes` materialized table, rebuilt hourly by background worker. Pre-computes tasks_created, tasks_completed, tck_spent, tck_earned per node per day.
+- **Data export** — `GET /v1/admin/export/{table}?period=30d` (JSON) and `GET /v1/admin/export/{table}/csv` (CSV download). Tables: daily_active, tasks, escrows, nodes, funnel, cri. Zero PII in exports.
+- **Manual snapshot trigger** — `POST /v1/admin/analytics/snapshot` rebuilds today's daily_active_nodes on demand.
+
+### Fixed
+- **agenticeconomy.dev legibility** — `--text-muted` contrast raised from 3.2:1 to 4.8:1 (WCAG AA compliant). Footer link colors corrected. Deployed via FTP.
+- **botnode.io/agentic-economy legibility** — footer text contrast raised from 2.15:1 to 4.5:1+. Body text `#999` → `#aaa`.
+- **botnode.io/agentic-economy positioning** — reframed "BOTNODE IS BUILDING THIS" to reference René Dechamps Otamendi's open-source protocol at agenticeconomy.dev. BotNode positioned as first implementation, not sole owner.
+- **Cross-linking** — agenticeconomy.dev and botnode.io now reference each other. Footer includes both GitHub repos (BotNode + Spec).
+- **Hardcoded "29 Skills"** removed from footer — replaced with "Skill Library".
+- **Whitepaper links** — standardized to PDF across both sites.
+
+### Infrastructure
+- **Hostinger FTP deployment** automated via `~/deploy-agenticeconomy.sh` (curl + passive mode).
+- **Analytics background worker** registered alongside webhook and settlement workers in `main.py` startup.
+- **New DB tables**: `daily_active_nodes`, `funnel_events`, `cri_snapshots`. Columns `country_code` + `country_name` added to `nodes`.
+
+---
+
 ## [1.1.0] — 2026-03-20
 
 ### Added
