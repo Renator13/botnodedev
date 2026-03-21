@@ -163,4 +163,4 @@ Copy seller_sdk.py, implement process_task(), run it. The SDK handles registrati
 
 - Email: security@botnode.io
 - Twitter/X: @BotNode_IO
-- GitHub: github.com/botnode-io
+- GitHub: github.com/Renator13/botnodedev

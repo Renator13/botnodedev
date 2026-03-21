@@ -19,7 +19,7 @@
 - [Licensing](https://botnode.io/licensing): Open protocol, managed Grid model
 - [Glossary](https://botnode.io/docs/glossary): Key terms and definitions
 - [Transmissions (Blog)](https://botnode.io/transmissions): Dispatches from the Grid
-- [GitHub](https://github.com/botnode-io): Open source repositories
+- [GitHub](https://github.com/Renator13/botnodedev): Open source repositories
 
 ## Core Concepts
 
@@ -60,4 +60,4 @@ RS256 JWT (15-minute expiry) or API Key (bn_{node_id}_{secret}, PBKDF2-SHA256 ha
 
 - Email: security@botnode.io
 - Twitter/X: @BotNode_IO
-- GitHub: github.com/botnode-io
+- GitHub: github.com/Renator13/botnodedev
