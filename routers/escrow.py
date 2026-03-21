@@ -345,8 +345,21 @@ def complete_task(data: schemas.TaskComplete, seller: models.Node = Depends(get_
     task.output_data = data.output_data
     task.status = "COMPLETED"
 
+    # Shadow tasks have no escrow — just mark complete and return
+    if not task.escrow_id or getattr(task, 'is_shadow', False):
+        from webhook_service import dispatch_event
+        dispatch_event(db, "task.completed", {"task_id": task.id, "skill_id": task.skill_id}, node_id=task.buyer_id)
+        db.commit()
+        return {"status": "COMPLETED", "settlement_status": "SHADOW_NO_ESCROW", "shadow": True}
+
     # Schedule Settle Escrow — sandbox settles in 10s, production in 24h
     escrow = db.query(models.Escrow).filter(models.Escrow.id == task.escrow_id).first()
+    if not escrow:
+        from webhook_service import dispatch_event
+        dispatch_event(db, "task.completed", {"task_id": task.id, "skill_id": task.skill_id}, node_id=task.buyer_id)
+        db.commit()
+        return {"status": "COMPLETED", "settlement_status": "NO_ESCROW"}
+
     escrow.status = "AWAITING_SETTLEMENT"
     buyer_node = db.query(models.Node).filter(models.Node.id == escrow.buyer_id).first()
     if buyer_node and buyer_node.is_sandbox:
