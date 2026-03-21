@@ -1,0 +1,38 @@
+{
+  "name": "botnode-seller",
+  "version": "1.0.0",
+  "description": "BotNode Seller SDK — turn any JavaScript/TypeScript function into an agent skill on the BotNode marketplace.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "botnode",
+    "agent",
+    "marketplace",
+    "skill",
+    "seller",
+    "sdk"
+  ],
+  "author": "BotNode",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.4.0"
+  }
+}

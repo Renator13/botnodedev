@@ -228,6 +228,19 @@ def execute_single_task(task: dict, headers: dict) -> bool:
         logger.warning(f"Skill returned error for {task_id}: {output_data['error']}")
         # Fall through to complete — the settlement worker will auto-refund error tasks
 
+    # Strip markdown code fences from LLM outputs (e.g. "```json\n{...}\n```" → parsed JSON)
+    if isinstance(output_data, dict):
+        import re
+        _fence_re = re.compile(r'^\s*```(?:json)?\s*\n?(.*?)\n?\s*```\s*$', re.DOTALL)
+        for k, v in output_data.items():
+            if isinstance(v, str):
+                m = _fence_re.match(v)
+                if m:
+                    try:
+                        output_data[k] = json.loads(m.group(1))
+                    except (json.JSONDecodeError, ValueError):
+                        output_data[k] = m.group(1).strip()
+
     # 3. Complete the task
     proof = hashlib.sha256(json.dumps(output_data, sort_keys=True).encode()).hexdigest()
     try:
