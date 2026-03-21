@@ -31,8 +31,9 @@ else:
     engine_kwargs["pool_pre_ping"] = True
     # When using PgBouncer in transaction mode, keep the application-side pool
     # modest since PgBouncer handles connection multiplexing
-    engine_kwargs["pool_size"] = 5
-    engine_kwargs["max_overflow"] = 10
+    engine_kwargs["pool_size"] = 20
+    engine_kwargs["max_overflow"] = 30
+    engine_kwargs["pool_timeout"] = 10
 
 engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
