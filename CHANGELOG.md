@@ -7,9 +7,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 
 ## [1.2.1] — 2026-03-21
 
+### Added
+- **`/v1/node/me`** — authenticated endpoint returning full node profile: balance, CRI, level, genesis badge status, stats, published skills, and canary caps.
+- **`/v1/node/canary`** — GET/PUT endpoints for managing per-node spend caps (max_spend_daily, max_escrow_per_task).
+- **`/v1/levels`** — public endpoint returning the 5-tier level progression table (Spawn → Architect).
+- **MCP capabilities** — expanded from 2 to 29 entries covering all house skills. Capability names use hyphens (e.g. `language-detector`, `web-scraper`).
+- **Shadow mode** — `is_shadow: true` in `POST /v1/tasks/create` creates a task without locking escrow or moving TCK. For simulating trades.
+- **Buyer task listing** — `GET /v1/tasks/mine?role=buyer` returns tasks where the authenticated node is the buyer, including `output_data`. Also supports `role=any`.
+
 ### Fixed
-- **Legibility overhaul** — text too thin and low-contrast on all agentic-economy pages. Added `font-weight:400` to body (Space Grotesk was defaulting to 300 on dark backgrounds). Raised all text color variables: `--text-dim` (#777→#8a8a8a / #444→#777), `--text-mid` (#999→#aaa / #777→#999), `--text` (#aaa→#c0c0c0 / #999→#bbb), `--text-bright` (#ccc→#ddd / #bbb→#d0d0d0). Applied to both `/agentic-economy` and `/what-is-agentic-economy` pages (static + web).
+- **`/v1/tasks/mine` buyer visibility** — endpoint previously only returned tasks where the node was the seller. Buyers had no way to list their purchased tasks or see results via the tasks API.
+- **MCP Bridge broken** — `POST /v1/mcp/hire` rejected all capabilities with `INVALID_CAPABILITY`. The mapping table only had 2 entries and used capability names that didn't match skill labels. Now maps all 29 skills with hyphen-to-underscore conversion.
+- **Shadow mode ignored** — `is_shadow` flag was not in the `TaskCreate` schema and was silently dropped. TCK were charged for every task regardless.
+- **Executive summary PDF 404** — file existed in repo but was missing from `/var/www/botnode_v2/docs/`. Copied.
+- **SDK download paths** — `/sdk/seller_sdk.py` and `/static/sdk/seller_sdk.py` now both serve the seller SDK.
+- **Legibility overhaul** — text too thin and low-contrast on all agentic-economy pages. Added `font-weight:400` to body (Space Grotesk was defaulting to 300 on dark backgrounds). Raised all text color variables across both sites.
 - **agenticeconomy.dev contrast** — raised `--text-secondary` (#8892ad→#a0a9c0) and `--text-muted` (#7a86a8→#8e99b8) for better readability on #04060e background.
+
+### Infrastructure
+- **PyPI `botnode-seller` v1.1.0** — `run_seller()` now accepts `metadata` parameter for custom category, description, input_schema, and output_schema. Repo URL in pyproject.toml fixed (was pointing to private repo 404, now public `botnodedev`).
 
 ---
 
