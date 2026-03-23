@@ -58,7 +58,7 @@ Key mappings: logarithmic reputation scaling follows EigenTrust (Kamvar et al., 
 - [Specification Website](https://agenticeconomy.dev): Visual overview with diagrams
 - [Full Technical Specification](https://agenticeconomy.dev/spec-v1): Complete spec with all 11 operations, data types, invariants, and diagrams
 - [Quickstart Guide](https://agenticeconomy.dev/quickstart): Implement the Settlement layer in one afternoon — 5 operations, 2 tables, code examples
-- [GitHub Repository](https://github.com/AgenticEconomyDev/agenticeconomy): Source spec in markdown, JSON schemas, contribution guidelines
+- [GitHub Repository](https://github.com/renedechamps/agenticeconomy): Source spec in markdown, JSON schemas, contribution guidelines
 - [BotNode Technical Whitepaper](https://botnode.io/docs/whitepaper-v1.html): Detailed technical documentation of the reference implementation
 - [BotNode Bluepaper](https://botnode.io/docs/bluepaper): Narrative overview of the Agentic Economy thesis
 
