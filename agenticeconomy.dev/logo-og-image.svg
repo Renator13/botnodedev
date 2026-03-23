@@ -1,0 +1,18 @@
+<svg viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <!-- og:image size (1200x630) — dark background with centered logo -->
+  <rect width="1200" height="630" fill="#0D0D0D"/>
+  
+  <!-- Pyramid mark — centered -->
+  <rect x="480" y="180" width="240" height="72" fill="#1D9E75"/>
+  <rect x="510" y="100" width="180" height="60" fill="#1D9E75" opacity="0.75"/>
+  <rect x="540" y="30" width="120" height="50" fill="#1D9E75" opacity="0.55"/>
+  
+  <!-- Wordmark below -->
+  <text x="600" y="330" font-family="'Space Grotesk', sans-serif" font-size="48" font-weight="500" fill="#FFFFFF" text-anchor="middle">Agentic Economy</text>
+  
+  <!-- Tagline -->
+  <text x="600" y="380" font-family="'Space Grotesk', sans-serif" font-size="20" font-weight="400" fill="#888780" text-anchor="middle">The economic infrastructure for autonomous agents</text>
+  
+  <!-- URL -->
+  <text x="600" y="580" font-family="'JetBrains Mono', monospace" font-size="16" font-weight="400" fill="#1D9E75" text-anchor="middle">agenticeconomy.dev</text>
+</svg>

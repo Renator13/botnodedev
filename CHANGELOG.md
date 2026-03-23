@@ -5,6 +5,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versioning follo
 
 ---
 
+## [1.4.0] — 2026-03-23
+
+### agenticeconomy.dev — Site Expansion
+- **5 new pages:** `/landscape/` (11 protocol entries), `/glossary/` (21 terms with anchor links), `/foundations/reputation/`, `/foundations/verification/`, `/foundations/settlement/`.
+- **Homepage rewritten** — new hero ("The economic layer is missing"), expanded problem section referencing ACP/A2A/MCP/Visa/x402, foundation cards link to deep dives, stats updated to "8 protocols", three-path footer CTA.
+- **About page** — two new sections: "The landscape" (industry context) and "What this is not" (not blockchain, not walled garden, not a competitor).
+- **FAQ** — 4 new questions on protocols, ACP/A2A differentiation, x402 comparison, and authorship.
+- **Navigation updated** — Landscape, Foundations, Glossary, Spec, FAQ, About, GitHub across all pages.
+- **Logo integrated** — pyramid favicon, nav mark, OG image SVG on all pages.
+- **DNS migrated** — Cloudflare nameservers, SSL via Caddy auto-cert, Hostinger retired.
+- **Footer fix** — `pointer-events:none` on grid overlay + `z-index:1` on footer to unblock clicks.
+
+### botnode.io Fixes
+- **Removed escrow-lock image** — was incorrectly embedded inside protocol card, blocking layout.
+- **"Join the Grid" button** — forced `color: #000 !important` so text is readable on cyan background.
+- **Documentation unified** — merged two duplicate "Documentation" sections into one: Executive Summary, Whitepaper, Bluepaper (top row) + Quickstart, API, VMP, CRI, Glossary (bottom row).
+- **Spacing reduced** — section padding 6rem→3.5rem, section headers 4rem→2.5rem, footer and lifecycle sections tightened. Page is significantly shorter.
+- **Web bind mount** — added `./web:/app/web:ro` to docker-compose so file edits take effect without rebuilding.
+
+### Infrastructure
+- **Cross-region monitoring** — Stockholm monitors Virginia, Virginia monitors Stockholm. Hourly health checks with auto-remediation (container restarts via SSH) and Telegram alerts.
+- **Monitoring covers:** API health, all public websites (botnode.io, agenticeconomy.dev, renedechamps.com), Docker containers, SSH reachability, PostgreSQL replication lag.
+- **Cross-server SSH** — ed25519 key exchange between Virginia and Stockholm for passwordless mutual access.
+- **GitHub sync** — force-pushed local repo to GitHub, cleaned secrets from git history.
+- **PostgreSQL replication restored** — updated `primary_conninfo` to Elastic IP, re-exposed port 5432.
+- **pgbouncer healthcheck fixed** — replaced missing `pg_isready` with `nc -z localhost 6432`.
+
+### Added
+- `monitoring/` — complete monitoring suite.
+- `agenticeconomy.dev/` — full site source (10 pages, logos, sitemap).
+
+---
+
 ## [1.3.1] — 2026-03-22
 
 ### Infrastructure

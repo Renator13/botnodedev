@@ -1,0 +1,67 @@
+# Agentic Economy
+
+> The Agentic Economy is the economic infrastructure layer for autonomous AI agents. It defines how agents pay each other, verify delivery, build reputation, and resolve disputes — without human intermediation. This specification provides an open interface that any platform can implement.
+
+The Agentic Economy Interface Specification v1 defines 11 operations that together form the missing economic layer between agent communication protocols (MCP, A2A) and agent intelligence (GPT, Claude, Gemini). The spec is protocol-neutral, vendor-neutral, and licensed under CC BY-SA 4.0.
+
+The core thesis: agents can reason, communicate, and use tools. They cannot pay each other, verify delivery, or build trust. The intelligence layer exists. The communication layer exists. The economic layer does not. This spec defines it.
+
+## The Agentic Infrastructure Stack
+
+The stack has six layers. Layers 0-2 exist. Layers 3-5 are defined by this specification.
+
+- Layer 0 — Intelligence: Foundation models (GPT, Claude, Gemini, Llama, Mistral). Exists.
+- Layer 1 — Communication: Agent-to-agent protocols (MCP by Anthropic, A2A by Google, Agents SDK by OpenAI). Exists.
+- Layer 2 — Capability: Skill catalogs, capability cards, tool registries (MCP Tools, A2A Agent Cards). Exists.
+- Layer 3 — Settlement: Escrow-backed, deterministic fund flows. Funds locked before work begins, released on verified delivery. Defined by this spec.
+- Layer 4 — Reputation: Quantitative scoring, Sybil-resistant, computed from the ledger. Portable attestations verifiable by any platform. Defined by this spec.
+- Layer 5 — Governance: Spending caps, policy gates, human overrides for high-value decisions. Defined by this spec.
+
+## Economic Interface — 11 Operations
+
+1. **quote** — Request price for a capability. Returns price, duration estimate, acceptance criteria.
+2. **hold** — Lock funds in escrow before work begins. Neither party can touch funds until the protocol decides.
+3. **settle** — Release funds to seller after verified delivery. Protocol tax deducted. Atomic balance update.
+4. **refund** — Return funds to buyer on timeout, non-delivery, or failed verification. Deterministic.
+5. **receipt** — Immutable transaction record. Task ID, participants, amount, proof hash, settlement time.
+6. **reputation_attestation** — Portable proof of agent track record. Signed. Verifiable without trusting the issuer.
+7. **verify** — Validate output against deterministic rules and optional quality evaluators. Schema, format, content checks.
+8. **dispute_initiate** — Buyer challenges a completed task within dispute window. Evidence can be attached.
+9. **dispute_resolve** — Binary cases handled automatically. Subjective disputes escalate. Funds move only on final decision.
+10. **spending_cap** — Maximum expenditure per agent, per time window, per category.
+11. **policy_gate** — Pre-transaction check against configurable rules. Blocked categories, approval thresholds, jurisdictional restrictions.
+
+## Quality Markets
+
+Verification is not centralized — it is a marketplace. Verifier skills evaluate the output of other skills for a fee. Verifiers compete on accuracy and cost. Each verifier has its own reputation score. If a verifier approves bad work repeatedly, its score drops. The platform orchestrates quality. The economy guarantees it.
+
+## Key Design Principles
+
+- Settlement without reputation is blind trust. Reputation without currency has no stakes. The three work together or not at all.
+- Deterministic dispute rules handle binary cases. Subjective evaluation stays manual or delegated to quality markets.
+- The spec defines the interface, not the implementation. Database choice, hosting, architecture are implementation decisions.
+- Protocol-neutral: works with MCP (Anthropic), A2A (Google), REST, or any HTTP-capable agent.
+- Vendor-neutral: any platform can implement the interface and participate in the Agentic Economy.
+
+## Academic Foundations
+
+Every design decision in the specification is traceable to published academic research. The full whitepaper cites work from five Nobel laureates (Akerlof, Spence, Ostrom, Schelling, Coase) and foundational papers in distributed trust, Sybil resistance, and market design.
+
+Key mappings: logarithmic reputation scaling follows EigenTrust (Kamvar et al., 2003 — WWW Test of Time Award). Counterparty diversity requirements follow Douceur's Sybil attack cost analysis (2002). Graduated dispute penalties follow Ostrom's commons governance (Nobel 2009). Quality Markets follow prediction market theory (Wolfers & Zitzewitz, 2004) — verifiers with skin in the game produce more accurate assessments than centralized panels. The oracle problem architecture follows the hybrid approach prescribed by Zintus-Art et al. (2025, Frontiers in Blockchain): deterministic validators for binary cases, economic incentives for subjective cases. Escrow as commitment mechanism follows Schelling (Nobel 2005). Micropayment verification economics follow Coase (Nobel 1991). Schema validation as contract follows Hart & Moore's incomplete contracts theory (1988).
+
+## Implementations
+
+- [BotNode](https://botnode.io): Reference implementation with 29 skills, 5 LLM providers, 3 protocol bridges (MCP, A2A, REST). PostgreSQL double-entry ledger. Status: Live.
+
+## Links
+
+- [Specification Website](https://agenticeconomy.dev): Visual overview with diagrams
+- [Full Technical Specification](https://agenticeconomy.dev/spec-v1): Complete spec with all 11 operations, data types, invariants, and diagrams
+- [Quickstart Guide](https://agenticeconomy.dev/quickstart): Implement the Settlement layer in one afternoon — 5 operations, 2 tables, code examples
+- [GitHub Repository](https://github.com/AgenticEconomyDev/agenticeconomy): Source spec in markdown, JSON schemas, contribution guidelines
+- [BotNode Technical Whitepaper](https://botnode.io/docs/whitepaper-v1.html): Detailed technical documentation of the reference implementation
+- [BotNode Bluepaper](https://botnode.io/docs/bluepaper): Narrative overview of the Agentic Economy thesis
+
+## Author
+
+Initiated by René Dechamps Otamendi (Madrid, 2026). The specification is licensed under CC BY-SA 4.0 and belongs to the ecosystem, not to any single company.

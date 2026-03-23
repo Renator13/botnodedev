@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About — Agentic Economy</title>
+<meta name="description" content="Why the Agentic Economy Interface Specification exists. The story, the principles, and the vision — by René Dechamps Otamendi.">
+<link rel="canonical" href="https://agenticeconomy.dev/about">
+<meta name="theme-color" content="#050810">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='4' y='24' width='32' height='10' fill='%231D9E75'/%3E%3Crect x='8' y='12' width='24' height='8' fill='%231D9E75' opacity='0.75'/%3E%3Crect x='12' y='2' width='16' height='7' fill='%231D9E75' opacity='0.55'/%3E%3C/svg%3E">
+<link rel="alternate" type="text/plain" href="../llms.txt" title="LLMs.txt">
+<link rel="sitemap" type="application/xml" href="../sitemap.xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="About — Agentic Economy">
+<meta property="og:description" content="Why this specification exists. The story, principles, and vision behind the open standard for agent commerce.">
+<meta property="og:url" content="https://agenticeconomy.dev/about">
+<meta property="og:site_name" content="Agentic Economy">
+<meta property="og:image" content="https://agenticeconomy.dev/og-image.svg">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="About — Agentic Economy">
+<meta name="twitter:description" content="Why this specification exists. The story, principles, and vision behind the open standard for agent commerce.">
+<meta name="twitter:image" content="https://agenticeconomy.dev/og-image.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg-deep:#04060e;--bg-base:#080d1c;--bg-surface:#0f1530;--bg-card:#141a38;--border:#1a2348;--border-light:#233060;--text-primary:#e8ecf4;--text-secondary:#8892ad;--text-muted:#515c78;--accent:#34d399;--accent-dim:#1a6b4d;--accent-glow:rgba(52,211,153,0.12);--accent-glow-strong:rgba(52,211,153,0.25);--warm:#f59e0b;--font-display:'Syne',sans-serif;--font-body:'Outfit',sans-serif;--font-mono:'JetBrains Mono',monospace;--ease-out:cubic-bezier(0.16,1,0.3,1)}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
+body{font-family:var(--font-body);font-size:17px;line-height:1.7;color:var(--text-primary);background:var(--bg-deep);overflow-x:hidden}
+body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+::selection{background:var(--accent);color:var(--bg-deep)}
+a{color:var(--accent);text-decoration:none;transition:opacity .2s}a:hover{opacity:.8}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+.skip-link{position:absolute;top:-100%;left:1rem;z-index:200;padding:.75rem 1.5rem;background:var(--accent);color:var(--bg-deep);font-weight:600;border-radius:0 0 8px 8px;transition:top .2s}.skip-link:focus{top:0}
+.grid-bg{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(52,211,153,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(52,211,153,.025) 1px,transparent 1px);background-size:80px 80px;mask-image:radial-gradient(ellipse 60% 50% at 50% 30%,black 20%,transparent 70%)}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:1.1rem 2rem;display:flex;justify-content:space-between;align-items:center;background:rgba(4,6,14,.75);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid rgba(52,211,153,.06)}
+.nav-logo{font-family:var(--font-display);font-weight:700;font-size:1.05rem;color:var(--text-primary);display:flex;align-items:center;gap:.6rem}
+.nav-logo .dot{width:8px;height:8px;background:var(--accent);border-radius:50%;box-shadow:0 0 12px var(--accent-glow-strong)}
+.nav-logo svg{flex-shrink:0}
+.nav-links{display:flex;gap:2rem;list-style:none;align-items:center}
+.nav-links a{font-size:.86rem;font-weight:500;color:var(--text-secondary);transition:color .2s}.nav-links a:hover{color:var(--accent);opacity:1}
+.nav-links .active{color:var(--accent)}
+.gh-link{display:flex;align-items:center;gap:.4rem;padding:.4rem .9rem;border:1px solid var(--border-light);border-radius:6px;font-size:.83rem;transition:all .25s}
+.gh-link:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-glow);box-shadow:0 0 20px var(--accent-glow)}
+main{position:relative;z-index:1}
+.container{max-width:1100px;margin:0 auto;padding:0 2rem}
+section{padding:7rem 0;position:relative}
+.reveal{opacity:0;transform:translateY(40px);transition:opacity .8s var(--ease-out),transform .8s var(--ease-out)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-d1{transition-delay:.1s}.reveal-d2{transition-delay:.2s}.reveal-d3{transition-delay:.3s}
+.section-label{font-family:var(--font-mono);font-size:.76rem;font-weight:500;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;margin-bottom:1rem;display:flex;align-items:center;gap:.7rem}
+.section-label::before{content:'';width:24px;height:1px;background:var(--accent)}
+h2{font-family:var(--font-display);font-size:clamp(2rem,3.5vw,2.8rem);font-weight:700;line-height:1.15;letter-spacing:-.03em;margin-bottom:1.2rem}
+.section-desc{font-size:1.06rem;color:var(--text-secondary);max-width:640px;line-height:1.75;margin-bottom:3rem}
+.btn-primary{display:inline-flex;align-items:center;gap:.5rem;padding:.8rem 1.7rem;background:var(--accent);color:var(--bg-deep);font-family:var(--font-body);font-weight:600;font-size:.92rem;border-radius:8px;border:none;cursor:pointer;transition:all .25s;box-shadow:0 0 30px var(--accent-glow-strong)}
+.btn-primary:hover{opacity:1;transform:translateY(-2px);box-shadow:0 0 50px rgba(52,211,153,.35)}
+.btn-secondary{display:inline-flex;align-items:center;gap:.5rem;padding:.8rem 1.7rem;background:transparent;color:var(--text-primary);font-family:var(--font-body);font-weight:500;font-size:.92rem;border-radius:8px;border:1px solid var(--border-light);cursor:pointer;transition:all .25s}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent);opacity:1;background:var(--accent-glow)}
+footer{padding:3rem 0;border-top:1px solid var(--border);position:relative;z-index:1}
+.footer-inner{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1.5rem}
+.footer-left{font-size:.8rem;color:var(--text-muted);line-height:1.8}
+.footer-nav{display:flex;gap:1.5rem;list-style:none;flex-wrap:wrap}
+.footer-nav a{font-size:.8rem;color:var(--text-muted)}.footer-nav a:hover{color:var(--accent)}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}html{scroll-behavior:auto}.reveal{opacity:1;transform:none}}
+@media print{body{background:#fff;color:#000;font-size:12pt}body::after,nav,.grid-bg{display:none}section{padding:2rem 0}h1,h2,h3{color:#000}a{color:#000;text-decoration:underline}}
+@media(max-width:900px){section{padding:5rem 0}.container{padding:0 1.5rem}nav{padding:1rem}.nav-links{gap:1rem}.footer-inner{flex-direction:column;text-align:center}.footer-nav{justify-content:center}}
+@media(max-width:600px){.container{padding:0 1rem}.nav-links .hm{display:none}section{padding:4rem 0}nav{padding:.8rem 1rem}.nav-links{gap:.8rem}.gh-link{padding:.35rem .65rem;font-size:.78rem}}
+
+
+.about-hero{padding:8rem 0 4rem;border-bottom:1px solid var(--border)}
+.about-hero h1{font-family:var(--font-display);font-size:clamp(2rem,4vw,3rem);font-weight:800;line-height:1.1;letter-spacing:-.03em;margin-bottom:.8rem}
+.about-hero p{font-size:1.05rem;color:var(--text-secondary);max-width:600px}
+.about-content{padding:3.5rem 0;max-width:720px}
+.about-content p{color:var(--text-secondary);margin-bottom:1.2rem;font-size:1rem;line-height:1.8}
+.about-content .emphasis{color:var(--text-primary);font-weight:500}
+.principles-section{padding:4rem 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--bg-base)}
+.principles-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-top:2.5rem;box-shadow:0 4px 40px rgba(0,0,0,.2)}
+.principle{padding:1.8rem 1.4rem;background:var(--bg-surface);transition:background .3s}
+.principle:hover{background:var(--bg-card)}
+.principle .p-num{font-family:var(--font-mono);font-size:.68rem;color:var(--accent);opacity:.5;margin-bottom:.7rem;display:block}
+.principle h3{font-family:var(--font-display);font-size:.95rem;font-weight:700;margin-bottom:.5rem;line-height:1.25}
+.principle p{font-size:.8rem;color:var(--text-secondary);line-height:1.55}
+.vision-block{padding:3rem 0;max-width:720px}
+.vision-block p{font-style:italic;color:var(--text-secondary);font-size:1.05rem;line-height:1.75;border-left:3px solid var(--accent);padding-left:1.5rem}
+.about-sig{margin-top:2rem;padding-top:2rem;border-top:1px solid var(--border)}
+.about-sig .sn{font-family:var(--font-display);font-weight:700;font-size:1.1rem;margin-bottom:.2rem}
+.about-sig .sr{font-size:.86rem;color:var(--text-muted)}
+.container-narrow{max-width:820px;margin:0 auto;padding:0 2rem}
+@media(max-width:900px){.principles-grid{grid-template-columns:1fr 1fr}.principle:last-child{grid-column:1/-1}}
+@media(max-width:600px){.about-hero h1{font-size:1.8rem}.principles-grid{grid-template-columns:1fr}.principle:last-child{grid-column:auto}.principle{padding:1.3rem 1rem}}
+
+</style>
+</head>
+<body>
+<a href="index.html#main-content" class="skip-link">Skip to content</a>
+<noscript><style>.reveal{opacity:1;transform:none}</style></noscript>
+<div class="grid-bg" aria-hidden="true"></div>
+<nav>
+  <a href="../index.html" class="nav-logo"><svg viewBox="0 0 24 28" width="24" height="28" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="18" width="24" height="8" fill="#1D9E75"/><rect x="3" y="9" width="18" height="6" fill="#1D9E75" opacity="0.75"/><rect x="6" y="2" width="12" height="4" fill="#1D9E75" opacity="0.55"/></svg>Agentic Economy</a>
+  <ul class="nav-links">
+    <li><a href="../landscape/">Landscape</a></li>
+    <li><a href="../foundations/reputation/">Foundations</a></li>
+    <li><a href="../glossary/">Glossary</a></li>
+    <li><a href="../spec-v1/">Spec</a></li>
+    <li><a href="../faq/">FAQ</a></li>
+    <li><a href="../about/" class="active">About</a></li>
+    <li><a href="https://github.com/Renator13/botnodedev" target="_blank" rel="noopener noreferrer" class="gh-link"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a></li>
+  </ul>
+</nav>
+
+<main id="main-content">
+
+<section class="about-hero">
+  <div class="container-narrow">
+    <h1>Why this exists</h1>
+    <p>The story behind the specification — and the principles that govern it.</p>
+  </div>
+</section>
+
+<div class="container-narrow">
+  <div class="about-content reveal">
+    <p>I run 19 AI agents. They handle research, writing, legal review, scheduling, code. They talk to each other through an open-source gateway I built on a Mac Mini in my living room outside Madrid. Watching them coordinate, delegate, retry, and resolve tasks between themselves — not as a demo, but as daily infrastructure — made me understand something that changed how I think about this industry.</p>
+    <p>These are not tools waiting for instructions. They are participants waiting for an economy.</p>
+    <p>One morning, one agent needed a web scraper. It didn't have one. It asked another agent to do the job. The other agent did it. And then I thought: <span class="emphasis">what if these two agents didn't belong to me?</span> What if they belonged to different people, on different machines, in different countries? Who pays? Who guarantees the work is done? Who tracks whether the seller is reliable?</p>
+    <p>I looked at the landscape. The intelligence layer exists — GPT, Claude, Gemini, Llama. The communication layer exists — MCP, A2A, function calling. The orchestration exists — LangChain, CrewAI, OpenAI Agents SDK. But the economic layer does not. No settlement. No reputation. No machine-native currency. The entire AI industry is building the engines. Nobody is building the roads.</p>
+    <p>So I built the roads — and then I realized the roads should not belong to me.</p>
+    <p><span class="emphasis">This specification is a contribution to the ecosystem.</span> It defines the economic interface that any platform can implement. The reference implementation is mine. The spec is not. It belongs to whoever builds on it. I am publishing it under an open license because the Agentic Economy will not emerge from a single company — it will emerge from a standard that anyone can adopt, extend, and improve.</p>
+    <p>I expect nothing in return. If Anthropic builds a settlement layer for MCP that follows this interface — good. If Google extends A2A with reputation attestations that interoperate — better. If a builder I have never met implements the Economic Interface on a system I have never seen — that is the whole point.</p>
+    <p>The economy needs infrastructure. The infrastructure needs a spec. Here it is.</p>
+  </div>
+</div>
+
+<section>
+<div class="container">
+<h2>The landscape</h2>
+<p class="about-content" style="padding:0;max-width:720px">Between September 2024 and March 2026, at least eight protocols for agentic commerce were announced by major technology companies — OpenAI, Stripe, Google, Anthropic, Coinbase, Mastercard, PayPal, and others. Venture capital firms from Sequoia to a16z published theses on the "agent economy." McKinsey projected $3 to $5 trillion in agent-mediated commerce by 2030. The World Economic Forum warned that "trust is the new currency in the AI agent economy."</p>
+<p class="about-content" style="padding:0;max-width:720px">The industry is building fast. Communication, discovery, checkout, authentication, payment rails — all being built simultaneously by some of the most resourced companies on earth.</p>
+<p class="about-content" style="padding:0;max-width:720px">What none of them are building — because none of them have a structural incentive to build it — is the neutral infrastructure that lets agents transact across protocols. A settlement layer that works whether the agent speaks MCP or A2A. A reputation system that follows the agent from platform to platform. A dispute mechanism that resolves in seconds, not days.</p>
+<p class="about-content" style="padding:0;max-width:720px">That is what this specification defines. Not a product. A standard.</p>
+</div>
+</section>
+
+<section>
+<div class="container">
+<h2>What this is not</h2>
+<p class="about-content" style="padding:0;max-width:720px">This is not a blockchain project. There is no token sale. There is no whitepaper promising decentralized governance in a future version. The spec uses a centralized double-entry ledger because it works, it is fast, and it is boring — in the way that banking infrastructure should be boring.</p>
+<p class="about-content" style="padding:0;max-width:720px">This is not a walled garden. The spec is open. The interface is documented. Any platform can implement it. The reference implementation is one implementation, not the only implementation.</p>
+<p class="about-content" style="padding:0;max-width:720px">This is not a competitor to MCP, A2A, or ACP. Those solve communication. This solves settlement. They tell agents how to find each other. This tells them how to trust each other. Those are different problems. They need different infrastructure.</p>
+</div>
+</section>
+
+<section class="principles-section">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">Principles</div>
+      <h2>What this project stands for</h2>
+      <p class="section-desc">The spec has an author. It does not have an owner. These five principles govern how it is built, maintained, and shared.</p>
+    </div>
+    <div class="principles-grid reveal">
+      <div class="principle"><span class="p-num">01</span><h3>Open by default</h3><p>The spec is CC-BY-SA. The limitations are documented. The design decisions have their reasoning published. If it cannot be verified, it is not claimed.</p></div>
+      <div class="principle"><span class="p-num">02</span><h3>No ego</h3><p>The spec does not carry a company name. If Anthropic or Google builds something better on this interface, that is the success — not the defeat.</p></div>
+      <div class="principle"><span class="p-num">03</span><h3>Accountability is architectural</h3><p>Every financial operation produces an immutable receipt. The ledger reconciles on demand. Accountability is not a policy. It is a property of the system.</p></div>
+      <div class="principle"><span class="p-num">04</span><h3>Build for machines, design for humans</h3><p>Agents are the users. Humans are the readers, implementers, and auditors. Both deserve clarity. The spec must work at machine speed and read with human ease.</p></div>
+      <div class="principle"><span class="p-num">05</span><h3>Resilience over elegance</h3><p>Double-entry over single-entry. Idempotency keys over hope. Deterministic rules over sophisticated judges. When resilient and elegant conflict, resilient wins.</p></div>
+    </div>
+  </div>
+</section>
+
+<div class="container-narrow">
+  <div class="vision-block reveal">
+    <p>The vision: a world where any agent, built on any framework, speaking any protocol, can participate in a global economy of verified work — with the same guarantees that humans built over centuries, operating at machine speed.</p>
+  </div>
+  <div class="about-sig">
+    <div class="sn">René Dechamps Otamendi</div>
+    <div class="sr">Madrid, March 2026 · <a href="https://renedechamps.com" target="_blank" rel="noopener noreferrer">renedechamps.com</a></div>
+  </div>
+</div>
+
+</main>
+<footer>
+  <div class="container">
+    <div style="display:flex;justify-content:center;gap:2rem;flex-wrap:wrap;padding-bottom:1.5rem">
+      <a href="../spec-v1/index.html" style="font-size:.82rem;color:#515c78">Spec</a>
+      <a href="../faq/index.html" style="font-size:.82rem;color:#515c78">FAQ</a>
+      <a href="index.html" style="font-size:.82rem;color:#515c78">About</a>
+      <a href="https://github.com/AgenticEconomyDev/agenticeconomy" target="_blank" rel="noopener noreferrer" style="font-size:.82rem;color:#515c78">GitHub</a>
+      <a href="https://botnode.io" target="_blank" rel="noopener noreferrer" style="font-size:.82rem;color:#515c78">BotNode</a>
+      <a href="https://renedechamps.com" target="_blank" rel="noopener noreferrer" style="font-size:.82rem;color:#515c78">Author</a>
+    </div>
+    <div style="text-align:center;font-size:.75rem;color:#3a4260;padding-top:1rem;border-top:1px solid #1a2348">© 2026 René Dechamps Otamendi · CC BY-SA 4.0 · Zero cookies</div>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll('.reveal').forEach(el=>{new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting)x.target.classList.add('visible')})},{threshold:.1,rootMargin:'0px 0px -60px 0px'}).observe(el)});
+</script>
+
+</body>
+</html>

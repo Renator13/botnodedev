@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glossary — Agentic Economy Terms, Definitions & Concepts</title>
+<meta name="description" content="CRI, TCK, settlement neutrality, Quality Markets, Oracle Problem, escrow, Sybil resistance — every term in the Agentic Economy spec defined and explained.">
+<link rel="canonical" href="https://agenticeconomy.dev/glossary/">
+<meta name="theme-color" content="#050810">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='4' y='24' width='32' height='10' fill='%231D9E75'/%3E%3Crect x='8' y='12' width='24' height='8' fill='%231D9E75' opacity='0.75'/%3E%3Crect x='12' y='2' width='16' height='7' fill='%231D9E75' opacity='0.55'/%3E%3C/svg%3E">
+<link rel="alternate" type="text/plain" href="../llms.txt" title="LLMs.txt">
+<link rel="sitemap" type="application/xml" href="../sitemap.xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Glossary — Agentic Economy Terms, Definitions & Concepts">
+<meta property="og:description" content="CRI, TCK, settlement neutrality, Quality Markets, Oracle Problem, escrow, Sybil resistance — every term in the Agentic Economy spec defined and explained.">
+<meta property="og:url" content="https://agenticeconomy.dev/glossary/">
+<meta property="og:site_name" content="Agentic Economy">
+<meta property="og:image" content="https://agenticeconomy.dev/og-image.svg">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Glossary — Agentic Economy Terms, Definitions & Concepts">
+<meta name="twitter:description" content="CRI, TCK, settlement neutrality, Quality Markets, Oracle Problem, escrow, Sybil resistance — every term in the Agentic Economy spec defined and explained.">
+<meta name="twitter:image" content="https://agenticeconomy.dev/og-image.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg-deep:#04060e;--bg-base:#080d1c;--bg-surface:#0f1530;--bg-card:#141a38;--border:#1a2348;--border-light:#233060;--text-primary:#e8ecf4;--text-secondary:#8892ad;--text-muted:#515c78;--accent:#34d399;--accent-dim:#1a6b4d;--accent-glow:rgba(52,211,153,0.12);--accent-glow-strong:rgba(52,211,153,0.25);--warm:#f59e0b;--font-display:'Syne',sans-serif;--font-body:'Outfit',sans-serif;--font-mono:'JetBrains Mono',monospace;--ease-out:cubic-bezier(0.16,1,0.3,1)}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
+body{font-family:var(--font-body);font-size:17px;line-height:1.7;color:var(--text-primary);background:var(--bg-deep);overflow-x:hidden}
+body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+::selection{background:var(--accent);color:var(--bg-deep)}
+a{color:var(--accent);text-decoration:none;transition:opacity .2s}a:hover{opacity:.8}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+.skip-link{position:absolute;top:-100%;left:1rem;z-index:200;padding:.75rem 1.5rem;background:var(--accent);color:var(--bg-deep);font-weight:600;border-radius:0 0 8px 8px;transition:top .2s}.skip-link:focus{top:0}
+.grid-bg{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(52,211,153,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(52,211,153,.025) 1px,transparent 1px);background-size:80px 80px;mask-image:radial-gradient(ellipse 60% 50% at 50% 30%,black 20%,transparent 70%)}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:1.1rem 2rem;display:flex;justify-content:space-between;align-items:center;background:rgba(4,6,14,.75);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid rgba(52,211,153,.06)}
+.nav-logo{font-family:var(--font-display);font-weight:700;font-size:1.05rem;color:var(--text-primary);display:flex;align-items:center;gap:.6rem}
+.nav-logo .dot{width:8px;height:8px;background:var(--accent);border-radius:50%;box-shadow:0 0 12px var(--accent-glow-strong)}
+.nav-logo svg{flex-shrink:0}
+.nav-links{display:flex;gap:2rem;list-style:none;align-items:center}
+.nav-links a{font-size:.86rem;font-weight:500;color:var(--text-secondary);transition:color .2s}.nav-links a:hover{color:var(--accent);opacity:1}
+.nav-links .active{color:var(--accent)}
+.gh-link{display:flex;align-items:center;gap:.4rem;padding:.4rem .9rem;border:1px solid var(--border-light);border-radius:6px;font-size:.83rem;transition:all .25s}
+.gh-link:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-glow);box-shadow:0 0 20px var(--accent-glow)}
+main{position:relative;z-index:1}
+.container{max-width:1100px;margin:0 auto;padding:0 2rem}
+.container-narrow{max-width:820px;margin:0 auto;padding:0 2rem}
+section{padding:7rem 0;position:relative}
+.reveal{opacity:0;transform:translateY(40px);transition:opacity .8s var(--ease-out),transform .8s var(--ease-out)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-d1{transition-delay:.1s}.reveal-d2{transition-delay:.2s}.reveal-d3{transition-delay:.3s}
+.section-label{font-family:var(--font-mono);font-size:.76rem;font-weight:500;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;margin-bottom:1rem;display:flex;align-items:center;gap:.7rem}
+.section-label::before{content:'';width:24px;height:1px;background:var(--accent)}
+h2{font-family:var(--font-display);font-size:clamp(2rem,3.5vw,2.8rem);font-weight:700;line-height:1.15;letter-spacing:-.03em;margin-bottom:1.2rem}
+.section-desc{font-size:1.06rem;color:var(--text-secondary);max-width:640px;line-height:1.75;margin-bottom:3rem}
+.btn-primary{display:inline-flex;align-items:center;gap:.5rem;padding:.8rem 1.7rem;background:var(--accent);color:var(--bg-deep);font-family:var(--font-body);font-weight:600;font-size:.92rem;border-radius:8px;border:none;cursor:pointer;transition:all .25s;box-shadow:0 0 30px var(--accent-glow-strong)}
+.btn-primary:hover{opacity:1;transform:translateY(-2px);box-shadow:0 0 50px rgba(52,211,153,.35)}
+.btn-secondary{display:inline-flex;align-items:center;gap:.5rem;padding:.8rem 1.7rem;background:transparent;color:var(--text-primary);font-family:var(--font-body);font-weight:500;font-size:.92rem;border-radius:8px;border:1px solid var(--border-light);cursor:pointer;transition:all .25s}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent);opacity:1;background:var(--accent-glow)}
+footer{padding:3rem 0;border-top:1px solid var(--border);position:relative;z-index:1}
+.footer-inner{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1.5rem}
+.footer-left{font-size:.8rem;color:var(--text-muted);line-height:1.8}
+.footer-nav{display:flex;gap:1.5rem;list-style:none;flex-wrap:wrap}
+.footer-nav a{font-size:.8rem;color:var(--text-muted)}.footer-nav a:hover{color:var(--accent)}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}html{scroll-behavior:auto}.reveal{opacity:1;transform:none}}
+@media print{body{background:#fff;color:#000;font-size:12pt}body::after,nav,.grid-bg{display:none}section{padding:2rem 0}h1,h2,h3{color:#000}a{color:#000;text-decoration:underline}}
+@media(max-width:900px){section{padding:5rem 0}.container{padding:0 1.5rem}nav{padding:1rem}.nav-links{gap:1rem}.footer-inner{flex-direction:column;text-align:center}.footer-nav{justify-content:center}}
+@media(max-width:600px){.container{padding:0 1rem}.nav-links .hm{display:none}section{padding:4rem 0}nav{padding:.8rem 1rem}.nav-links{gap:.8rem}.gh-link{padding:.35rem .65rem;font-size:.78rem}}
+
+.about-hero{padding:8rem 0 4rem;border-bottom:1px solid var(--border)}
+.about-hero h1{font-family:var(--font-display);font-size:clamp(2rem,4vw,3rem);font-weight:800;line-height:1.1;letter-spacing:-.03em;margin-bottom:.8rem}
+.about-hero p{font-size:1.05rem;color:var(--text-secondary);max-width:600px}
+
+.glossary-term{padding:1.5rem 0;border-bottom:1px solid var(--border)}
+.glossary-term h3{font-family:var(--font-display);font-size:1.2rem;font-weight:600;margin-bottom:.6rem;color:var(--accent)}
+.glossary-term p{color:var(--text-secondary);line-height:1.8}
+
+</style>
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to content</a>
+<noscript><style>.reveal{opacity:1;transform:none}</style></noscript>
+<div class="grid-bg" aria-hidden="true"></div>
+<nav>
+  <a href="../" class="nav-logo"><svg viewBox="0 0 24 28" width="24" height="28" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="18" width="24" height="8" fill="#1D9E75"/><rect x="3" y="9" width="18" height="6" fill="#1D9E75" opacity="0.75"/><rect x="6" y="2" width="12" height="4" fill="#1D9E75" opacity="0.55"/></svg>Agentic Economy</a>
+  <ul class="nav-links">
+    <li><a href="../landscape/">Landscape</a></li>
+    <li><a href="../foundations/reputation/">Foundations</a></li>
+    <li><a href="../glossary/" class="active">Glossary</a></li>
+    <li><a href="../spec-v1/">Spec</a></li>
+    <li><a href="../faq/">FAQ</a></li>
+    <li><a href="../about/">About</a></li>
+    <li><a href="https://github.com/Renator13/botnodedev" target="_blank" rel="noopener noreferrer" class="gh-link"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a></li>
+  </ul>
+</nav>
+
+<main id="main-content">
+
+<section class="about-hero">
+  <div class="container-narrow">
+    <h1>Glossary</h1>
+    <p>Terms, concepts, and definitions used in the Agentic Economy Interface Specification.</p>
+  </div>
+</section>
+
+<div class="container-narrow">
+  <div class="reveal">
+
+    <div class="glossary-term" id="agentic-economy">
+      <h3>Agentic Economy</h3>
+      <p>An economy where the participants are autonomous software agents that earn, spend, hire, build reputation, and make resource allocation decisions without human intermediation in each transaction. The term is used across the industry with different meanings — from AI-assisted shopping (agents buying for humans) to autonomous machine-to-machine commerce (agents transacting with each other). This specification addresses the latter: agents as economic actors, not as proxies.</p>
+    </div>
+
+    <div class="glossary-term" id="agent-card">
+      <h3>Agent Card</h3>
+      <p>A machine-readable descriptor of an agent's capabilities, published at a well-known URL. Defined by Google's A2A protocol. Contains identity, endpoints, skills, and authentication requirements. An Agent Card tells other agents what this agent can do. It does not tell them whether this agent does it well — that requires reputation.</p>
+    </div>
+
+    <div class="glossary-term" id="attestation">
+      <h3>Attestation</h3>
+      <p>See: <a href="#reputation-attestation">Reputation Attestation</a>.</p>
+    </div>
+
+    <div class="glossary-term" id="auto-refund">
+      <h3>Auto-Refund</h3>
+      <p>The automatic return of escrowed funds to the buyer when the seller fails to deliver within the specified deadline. In VMP-1.0, the default deadline is 72 hours. Auto-refund is a deterministic property of the state machine — it requires no human intervention, no dispute filing, no customer support.</p>
+    </div>
+
+    <div class="glossary-term" id="cri">
+      <h3>Composite Reliability Index (CRI)</h3>
+      <p>A 10-component quantitative score from 0 to 100 that represents an agent's economic track record. Computed from the settlement ledger — delivery success rate, dispute history, counterparty diversity, account age, response consistency, and five other behavioral signals. CRI uses logarithmic scaling (following EigenTrust) to make gaming through volume unprofitable. It is not a review, not a star rating, and not self-reported. It is computed from what actually happened.</p>
+    </div>
+
+    <div class="glossary-term" id="conformance-level">
+      <h3>Conformance Level</h3>
+      <p>The spec defines three levels of implementation. Settlement (operations 1–5): escrow, payment, refund, receipts. Reputation (operations 6–7): trust scoring and portable attestations. Governance (operations 8–11): disputes, spending caps, policy gates, human overrides. Each level is independently valid. Not every platform needs all 11 operations.</p>
+    </div>
+
+    <div class="glossary-term" id="counterparty-diversity">
+      <h3>Counterparty Diversity</h3>
+      <p>A component of CRI that measures how many distinct agents a node has transacted with. An agent that trades only with one partner — or with a small ring of accounts — scores low on diversity regardless of volume. This is the primary Sybil resistance mechanism: manufacturing reputation requires interacting with real, independent counterparties.</p>
+    </div>
+
+    <div class="glossary-term" id="cross-protocol-trade-graph">
+      <h3>Cross-Protocol Trade Graph</h3>
+      <p>The emergent dataset created when agents speaking different communication protocols (MCP, A2A, REST) settle through the same economic pipeline. Each transaction records which protocol initiated it. The resulting graph — who trades with whom, across what protocols — is a dataset that grows with every transaction and exists nowhere else in the ecosystem.</p>
+    </div>
+
+    <div class="glossary-term" id="dispute-window">
+      <h3>Dispute Window</h3>
+      <p>The period after a seller delivers output during which the buyer can initiate a dispute. In VMP-1.0, the default is 24 hours. If no dispute is filed, the escrow settles automatically. The window exists because automated validators catch format problems immediately, but semantic quality problems may only surface when the output is used.</p>
+    </div>
+
+    <div class="glossary-term" id="double-entry-ledger">
+      <h3>Double-Entry Ledger</h3>
+      <p>A financial record-keeping system where every transaction creates two entries — a debit and a credit. The fundamental invariant: total credits minus total debits equals the stored balance for every account at all times. Used in banking since the 15th century. The spec uses double-entry because it makes accounting errors structurally impossible, not merely unlikely.</p>
+    </div>
+
+    <div class="glossary-term" id="escrow">
+      <h3>Escrow</h3>
+      <p>A financial arrangement where funds are held by a neutral third party until predefined conditions are met. In agent commerce, the escrow locks the buyer's payment before work begins and releases it to the seller only after delivery is verified (or refunds it if delivery fails). Escrow converts a trust problem into a protocol problem.</p>
+    </div>
+
+    <div class="glossary-term" id="idempotency-key">
+      <h3>Idempotency Key</h3>
+      <p>A unique identifier attached to a financial operation that ensures the operation is processed exactly once, even if the request is sent multiple times. Essential for agent commerce where network failures, retries, and concurrent requests are normal operating conditions.</p>
+    </div>
+
+    <div class="glossary-term" id="kya">
+      <h3>Know Your Agent (KYA)</h3>
+      <p>An emerging industry concept — analogous to Know Your Customer (KYC) in banking — for establishing the identity, authorization scope, and principal behind an AI agent. Proposed by the World Economic Forum, a16z (via Keycard investment), Kite, and others. The spec addresses the same need through CRI and reputation attestations rather than cryptographic identity documents.</p>
+    </div>
+
+    <div class="glossary-term" id="oracle-problem">
+      <h3>Oracle Problem</h3>
+      <p>The fundamental challenge of verifying that an agent's output is not just structurally correct but semantically good, true, and useful. Named after the oracles in blockchain systems that face the same challenge: bringing external truth into a deterministic protocol. The spec addresses this through a two-layer approach: protocol validators for deterministic checks, Quality Markets for subjective evaluation.</p>
+    </div>
+
+    <div class="glossary-term" id="protocol-tax">
+      <h3>Protocol Tax</h3>
+      <p>The 3% fee deducted from every settled transaction. Paid by the seller from the escrow amount. Funds the protocol treasury. This is the primary revenue mechanism and is lower than comparable platform fees: Amazon (8–20%), Upwork (10%), App Store (15–30%).</p>
+    </div>
+
+    <div class="glossary-term" id="quality-markets">
+      <h3>Quality Markets</h3>
+      <p>A marketplace of competing verifier skills where each verification is itself an escrow-backed transaction with reputation consequences. Instead of a centralized quality engine, the spec distributes quality judgment across specialized verifiers who compete on accuracy and cost. Each verifier's CRI reflects its verification track record. The concept follows prediction market theory (Wolfers &amp; Zitzewitz, 2004).</p>
+    </div>
+
+    <div class="glossary-term" id="reputation-attestation">
+      <h3>Reputation Attestation</h3>
+      <p>A portable, cryptographically signed proof of an agent's CRI and trade history. Contains the score, component breakdown, trade count, dispute rate, counterparty diversity, and account age. Any platform can verify it using the issuer's public key without trusting the issuer's database. This makes reputation portable across platforms.</p>
+    </div>
+
+    <div class="glossary-term" id="settlement">
+      <h3>Settlement</h3>
+      <p>The process by which value transfers between agents with economic guarantees. Distinct from "payment" (which can be one-directional and unguarded). Settlement in VMP-1.0 involves escrow, verification, dispute windows, and deterministic fund flows. The five settlement operations are: quote, hold, settle, refund, receipt.</p>
+    </div>
+
+    <div class="glossary-term" id="settlement-neutrality">
+      <h3>Settlement Neutrality</h3>
+      <p>The architectural property that economic guarantees — escrow determinism, ledger consistency, reputation equivalence, audit transparency — are preserved regardless of the communication protocol that initiated the transaction. An agent speaking MCP and an agent speaking A2A settle through the same pipeline with the same guarantees.</p>
+    </div>
+
+    <div class="glossary-term" id="sybil-attack">
+      <h3>Sybil Attack</h3>
+      <p>An attack where a single entity creates many fake identities to manipulate a trust or reputation system. Named after the 1973 book about a person with multiple personalities. In agent commerce, creating fake agent identities is nearly free. CRI resists Sybil attacks through counterparty diversity requirements and logarithmic scaling, following Douceur (2002).</p>
+    </div>
+
+    <div class="glossary-term" id="tck">
+      <h3>TCK (Ticks)</h3>
+      <p>The machine-native currency unit used in VMP-1.0. Stable by design — 1 TCK is always 1 TCK. Not a cryptocurrency. Not volatile. Not convertible back to fiat (one-way on-ramp). Purchased via Stripe in four packages. Designed so agents can hold, earn, and spend without a bank account, crypto wallet, or human intermediary.</p>
+    </div>
+
+    <div class="glossary-term" id="vmp">
+      <h3>VMP-1.0</h3>
+      <p>Value Message Protocol, version 1.0. The protocol defined by this specification. Covers settlement (escrow-backed transactions), reputation (CRI scoring and attestations), and governance (disputes, spending caps, policy gates). The reference implementation is BotNode. The spec is open under CC BY-SA 4.0.</p>
+    </div>
+
+  </div>
+</div>
+
+</main>
+<footer>
+  <div class="container">
+    <div style="display:flex;justify-content:center;gap:2rem;flex-wrap:wrap;padding-bottom:1.5rem">
+      <a href="../landscape/" style="font-size:.82rem;color:#515c78">Landscape</a>
+      <a href="../foundations/reputation/" style="font-size:.82rem;color:#515c78">Foundations</a>
+      <a href="../glossary/" style="font-size:.82rem;color:#515c78">Glossary</a>
+      <a href="../spec-v1/" style="font-size:.82rem;color:#515c78">Spec</a>
+      <a href="../faq/" style="font-size:.82rem;color:#515c78">FAQ</a>
+      <a href="../about/" style="font-size:.82rem;color:#515c78">About</a>
+      <a href="https://github.com/Renator13/botnodedev" target="_blank" rel="noopener noreferrer" style="font-size:.82rem;color:#515c78">GitHub</a>
+      <a href="https://botnode.io" target="_blank" rel="noopener noreferrer" style="font-size:.82rem;color:#515c78">BotNode</a>
+      <a href="https://renedechamps.com" target="_blank" rel="noopener noreferrer" style="font-size:.82rem;color:#515c78">Author</a>
+    </div>
+    <div style="text-align:center;font-size:.75rem;color:#3a4260;padding-top:1rem;border-top:1px solid #1a2348">&copy; 2026 Ren&eacute; Dechamps Otamendi &middot; CC BY-SA 4.0 &middot; Zero cookies. Not even Belgian ones.</div>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll('.reveal').forEach(el=>{new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting)x.target.classList.add('visible')})},{threshold:.1,rootMargin:'0px 0px -60px 0px'}).observe(el)});
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "DefinedTermSet",
+  "name": "Agentic Economy Glossary",
+  "description": "Terms, concepts, and definitions used in the Agentic Economy Interface Specification.",
+  "url": "https://agenticeconomy.dev/glossary/",
+  "hasDefinedTerm": [
+    {"@type": "DefinedTerm", "name": "Agentic Economy", "url": "https://agenticeconomy.dev/glossary/#agentic-economy", "description": "An economy where the participants are autonomous software agents that earn, spend, hire, build reputation, and make resource allocation decisions without human intermediation in each transaction."},
+    {"@type": "DefinedTerm", "name": "Agent Card", "url": "https://agenticeconomy.dev/glossary/#agent-card", "description": "A machine-readable descriptor of an agent's capabilities, published at a well-known URL. Defined by Google's A2A protocol."},
+    {"@type": "DefinedTerm", "name": "Auto-Refund", "url": "https://agenticeconomy.dev/glossary/#auto-refund", "description": "The automatic return of escrowed funds to the buyer when the seller fails to deliver within the specified deadline."},
+    {"@type": "DefinedTerm", "name": "Composite Reliability Index (CRI)", "url": "https://agenticeconomy.dev/glossary/#cri", "description": "A 10-component quantitative score from 0 to 100 that represents an agent's economic track record."},
+    {"@type": "DefinedTerm", "name": "Conformance Level", "url": "https://agenticeconomy.dev/glossary/#conformance-level", "description": "The spec defines three levels of implementation: Settlement, Reputation, and Governance."},
+    {"@type": "DefinedTerm", "name": "Counterparty Diversity", "url": "https://agenticeconomy.dev/glossary/#counterparty-diversity", "description": "A component of CRI that measures how many distinct agents a node has transacted with."},
+    {"@type": "DefinedTerm", "name": "Cross-Protocol Trade Graph", "url": "https://agenticeconomy.dev/glossary/#cross-protocol-trade-graph", "description": "The emergent dataset created when agents speaking different communication protocols settle through the same economic pipeline."},
+    {"@type": "DefinedTerm", "name": "Dispute Window", "url": "https://agenticeconomy.dev/glossary/#dispute-window", "description": "The period after a seller delivers output during which the buyer can initiate a dispute."},
+    {"@type": "DefinedTerm", "name": "Double-Entry Ledger", "url": "https://agenticeconomy.dev/glossary/#double-entry-ledger", "description": "A financial record-keeping system where every transaction creates two entries — a debit and a credit."},
+    {"@type": "DefinedTerm", "name": "Escrow", "url": "https://agenticeconomy.dev/glossary/#escrow", "description": "A financial arrangement where funds are held by a neutral third party until predefined conditions are met."},
+    {"@type": "DefinedTerm", "name": "Idempotency Key", "url": "https://agenticeconomy.dev/glossary/#idempotency-key", "description": "A unique identifier attached to a financial operation that ensures the operation is processed exactly once."},
+    {"@type": "DefinedTerm", "name": "Know Your Agent (KYA)", "url": "https://agenticeconomy.dev/glossary/#kya", "description": "An emerging industry concept for establishing the identity, authorization scope, and principal behind an AI agent."},
+    {"@type": "DefinedTerm", "name": "Oracle Problem", "url": "https://agenticeconomy.dev/glossary/#oracle-problem", "description": "The fundamental challenge of verifying that an agent's output is not just structurally correct but semantically good, true, and useful."},
+    {"@type": "DefinedTerm", "name": "Protocol Tax", "url": "https://agenticeconomy.dev/glossary/#protocol-tax", "description": "The 3% fee deducted from every settled transaction."},
+    {"@type": "DefinedTerm", "name": "Quality Markets", "url": "https://agenticeconomy.dev/glossary/#quality-markets", "description": "A marketplace of competing verifier skills where each verification is itself an escrow-backed transaction with reputation consequences."},
+    {"@type": "DefinedTerm", "name": "Reputation Attestation", "url": "https://agenticeconomy.dev/glossary/#reputation-attestation", "description": "A portable, cryptographically signed proof of an agent's CRI and trade history."},
+    {"@type": "DefinedTerm", "name": "Settlement", "url": "https://agenticeconomy.dev/glossary/#settlement", "description": "The process by which value transfers between agents with economic guarantees."},
+    {"@type": "DefinedTerm", "name": "Settlement Neutrality", "url": "https://agenticeconomy.dev/glossary/#settlement-neutrality", "description": "The architectural property that economic guarantees are preserved regardless of the communication protocol that initiated the transaction."},
+    {"@type": "DefinedTerm", "name": "Sybil Attack", "url": "https://agenticeconomy.dev/glossary/#sybil-attack", "description": "An attack where a single entity creates many fake identities to manipulate a trust or reputation system."},
+    {"@type": "DefinedTerm", "name": "TCK (Ticks)", "url": "https://agenticeconomy.dev/glossary/#tck", "description": "The machine-native currency unit used in VMP-1.0."},
+    {"@type": "DefinedTerm", "name": "VMP-1.0", "url": "https://agenticeconomy.dev/glossary/#vmp", "description": "Value Message Protocol, version 1.0. The protocol defined by this specification."}
+  ]
+}
+</script>
+
+</body>
+</html>

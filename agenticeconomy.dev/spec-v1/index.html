@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentic Economy Interface Specification v1 — Open Standard for Agent Commerce</title>
+<meta name="description" content="Technical specification defining 11 operations for autonomous AI agent commerce: settlement, reputation, and governance. Open standard, CC BY-SA 4.0.">
+<meta name="keywords" content="agentic economy spec, AI agent settlement, agent reputation protocol, machine commerce standard, MCP A2A economic layer">
+<link rel="canonical" href="https://agenticeconomy.dev/spec-v1">
+<meta name="theme-color" content="#050810">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='4' y='24' width='32' height='10' fill='%231D9E75'/%3E%3Crect x='8' y='12' width='24' height='8' fill='%231D9E75' opacity='0.75'/%3E%3Crect x='12' y='2' width='16' height='7' fill='%231D9E75' opacity='0.55'/%3E%3C/svg%3E">
+<link rel="alternate" type="text/plain" href="../llms.txt" title="LLMs.txt">
+<link rel="sitemap" type="application/xml" href="../sitemap.xml">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Agentic Economy Interface Specification v1">
+<meta property="og:description" content="11 operations for autonomous agent commerce. Settlement, reputation, governance. Open standard.">
+<meta property="og:url" content="https://agenticeconomy.dev/spec-v1">
+<meta property="og:site_name" content="Agentic Economy">
+<meta property="og:image" content="https://agenticeconomy.dev/og-image.svg">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Agentic Economy Interface Spec v1">
+<meta name="twitter:description" content="11 operations for autonomous agent commerce. Open standard, CC BY-SA 4.0.">
+<meta name="twitter:image" content="https://agenticeconomy.dev/og-image.svg">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Agentic Economy Interface Specification v1","description":"Technical specification defining 11 operations for autonomous AI agent commerce.","author":{"@type":"Person","name":"René Dechamps Otamendi","url":"https://renedechamps.com"},"datePublished":"2026-03-19","url":"https://agenticeconomy.dev/spec-v1","version":"1.0.0","license":"https://creativecommons.org/licenses/by-sa/4.0/"}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg-deep:#04060e;--bg-base:#080d1c;--bg-surface:#0f1530;--bg-card:#141a38;--border:#1a2348;--border-light:#233060;--text-primary:#e8ecf4;--text-secondary:#8892ad;--text-muted:#515c78;--accent:#34d399;--accent-dim:#1a6b4d;--accent-glow:rgba(52,211,153,0.12);--accent-glow-strong:rgba(52,211,153,0.25);--warm:#f59e0b;--font-display:'Syne',sans-serif;--font-body:'Outfit',sans-serif;--font-mono:'JetBrains Mono',monospace;--ease-out:cubic-bezier(0.16,1,0.3,1)}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
+body{font-family:var(--font-body);font-size:17px;line-height:1.7;color:var(--text-primary);background:var(--bg-deep);overflow-x:hidden}
+body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+::selection{background:var(--accent);color:var(--bg-deep)}
+a{color:var(--accent);text-decoration:none;transition:opacity .2s}a:hover{opacity:.8}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+.skip-link{position:absolute;top:-100%;left:1rem;z-index:200;padding:.75rem 1.5rem;background:var(--accent);color:var(--bg-deep);font-weight:600;border-radius:0 0 8px 8px;transition:top .2s}.skip-link:focus{top:0}
+
+/* Nav */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:1.1rem 2rem;display:flex;justify-content:space-between;align-items:center;background:rgba(4,6,14,.75);backdrop-filter:blur(24px);border-bottom:1px solid rgba(52,211,153,.06)}
+.nav-logo{font-family:var(--font-display);font-weight:700;font-size:1.05rem;color:var(--text-primary);display:flex;align-items:center;gap:.6rem}
+.nav-logo .dot{width:8px;height:8px;background:var(--accent);border-radius:50%;box-shadow:0 0 12px var(--accent-glow-strong)}
+.nav-logo svg{flex-shrink:0}
+.nav-links{display:flex;gap:1.5rem;list-style:none;align-items:center}
+.nav-links a{font-size:.85rem;font-weight:500;color:var(--text-secondary);transition:color .2s}.nav-links a:hover{color:var(--accent);opacity:1}
+.gh-link{display:flex;align-items:center;gap:.4rem;padding:.4rem .9rem;border:1px solid var(--border-light);border-radius:6px;font-size:.83rem;transition:all .25s}
+.gh-link:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-glow)}
+
+/* Layout */
+.container{max-width:860px;margin:0 auto;padding:0 2rem}
+
+/* Spec content */
+.spec-hero{padding:8rem 0 4rem;border-bottom:1px solid var(--border)}
+.spec-hero .badge{display:inline-flex;align-items:center;gap:.5rem;font-family:var(--font-mono);font-size:.75rem;color:var(--accent);padding:.35rem .8rem;border:1px solid var(--accent-dim);border-radius:100px;background:var(--accent-glow);margin-bottom:1.5rem}
+.spec-hero h1{font-family:var(--font-display);font-size:clamp(2rem,4vw,3rem);font-weight:800;line-height:1.1;letter-spacing:-.03em;margin-bottom:1rem}
+.spec-hero .sub{font-size:1.05rem;color:var(--text-secondary);max-width:600px;line-height:1.7}
+.spec-meta{display:flex;gap:2rem;margin-top:2rem;flex-wrap:wrap}
+.spec-meta span{font-family:var(--font-mono);font-size:.78rem;color:var(--text-muted)}
+.spec-meta span b{color:var(--text-secondary);font-weight:500}
+
+/* TOC */
+.toc{padding:3rem 0;border-bottom:1px solid var(--border)}
+.toc h2{font-family:var(--font-display);font-size:1.3rem;font-weight:700;margin-bottom:1.2rem}
+.toc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.5rem}
+.toc a{display:block;padding:.5rem .8rem;font-size:.88rem;color:var(--text-secondary);border-radius:6px;transition:all .2s;border:1px solid transparent}
+.toc a:hover{color:var(--accent);background:var(--accent-glow);border-color:var(--accent-dim);opacity:1}
+.toc a .tnum{font-family:var(--font-mono);font-size:.72rem;color:var(--text-muted);margin-right:.4rem}
+
+/* Sections */
+.spec-section{padding:3.5rem 0;border-bottom:1px solid var(--border)}
+.spec-section:last-child{border-bottom:none}
+.spec-section h2{font-family:var(--font-display);font-size:1.6rem;font-weight:700;margin-bottom:1.5rem;display:flex;align-items:center;gap:.6rem}
+.spec-section h2 .snum{font-family:var(--font-mono);font-size:.8rem;color:var(--accent);background:var(--accent-glow);padding:.2rem .5rem;border-radius:4px;border:1px solid var(--accent-dim)}
+.spec-section h3{font-family:var(--font-display);font-size:1.15rem;font-weight:700;margin:2rem 0 .8rem;color:var(--text-primary)}
+.spec-section h4{font-family:var(--font-mono);font-size:.92rem;font-weight:500;color:var(--accent);margin:1.5rem 0 .6rem}
+.spec-section p{color:var(--text-secondary);margin-bottom:1rem;line-height:1.75}
+.spec-section strong{color:var(--text-primary);font-weight:600}
+
+/* Code blocks */
+pre{font-family:var(--font-mono);font-size:.82rem;background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;padding:1.2rem 1.4rem;margin:1rem 0 1.5rem;overflow-x:auto;line-height:1.6;color:var(--text-secondary)}
+code{font-family:var(--font-mono);font-size:.85rem;background:var(--bg-surface);border:1px solid var(--border);border-radius:4px;padding:.1rem .4rem;color:var(--accent)}
+pre code{background:none;border:none;padding:0;color:inherit}
+
+/* Tables */
+table{width:100%;border-collapse:collapse;margin:1rem 0 1.5rem;font-size:.88rem}
+th,td{border:1px solid var(--border);padding:.6rem .8rem;text-align:left}
+th{background:var(--bg-surface);font-weight:600;color:var(--text-primary);font-size:.82rem}
+td{color:var(--text-secondary)}
+td code{font-size:.78rem}
+
+/* Operation cards */
+.op-block{margin:2rem 0;padding:2rem;background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;position:relative;overflow:hidden}
+.op-block::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}
+.op-block h4{margin-top:0}
+.op-block .op-sem{padding:.8rem 1rem;background:var(--bg-card);border-radius:6px;margin:1rem 0;font-size:.88rem;color:var(--text-secondary);line-height:1.6;border-left:2px solid var(--accent-dim)}
+
+/* Lists */
+ol,ul{color:var(--text-secondary);margin:1rem 0;padding-left:1.5rem}
+li{margin-bottom:.4rem;line-height:1.65}
+li strong{color:var(--text-primary)}
+
+/* Diagram containers */
+.diagram{margin:2rem 0;display:flex;justify-content:center;overflow-x:auto;padding:1rem 0}
+.diagram svg{max-width:100%}
+
+/* Footer */
+footer{padding:3rem 0;border-top:1px solid var(--border);margin-top:2rem}
+.footer-content{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem}
+.footer-left{font-size:.8rem;color:var(--text-muted);line-height:1.6}
+.footer-links{display:flex;gap:1.5rem;list-style:none}
+.footer-links a{font-size:.8rem;color:var(--text-muted)}.footer-links a:hover{color:var(--accent)}
+
+/* Responsive */
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}html{scroll-behavior:auto}}
+@media print{body{background:#fff;color:#000;font-size:11pt}body::after{display:none}nav{display:none}.op-block{border:1px solid #ccc;break-inside:avoid}pre{border:1px solid #ccc}a{color:#000}}
+@media(max-width:700px){.container{padding:0 1rem}.spec-hero h1{font-size:1.8rem}.spec-meta{gap:1rem}.toc-grid{grid-template-columns:1fr}nav{padding:.8rem 1rem}.nav-links{gap:.8rem}}
+</style>
+</head>
+<body>
+<a href="index.html#main-content" class="skip-link">Skip to content</a>
+<noscript><style>.reveal{opacity:1;transform:none}</style></noscript>
+
+<nav>
+  <a href="../index.html" class="nav-logo"><svg viewBox="0 0 24 28" width="24" height="28" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="18" width="24" height="8" fill="#1D9E75"/><rect x="3" y="9" width="18" height="6" fill="#1D9E75" opacity="0.75"/><rect x="6" y="2" width="12" height="4" fill="#1D9E75" opacity="0.55"/></svg>Agentic Economy</a>
+  <ul class="nav-links">
+    <li><a href="../landscape/">Landscape</a></li>
+    <li><a href="../foundations/reputation/">Foundations</a></li>
+    <li><a href="../glossary/">Glossary</a></li>
+    <li><a href="../spec-v1/" class="active">Spec</a></li>
+    <li><a href="../faq/">FAQ</a></li>
+    <li><a href="../about/">About</a></li>
+    <li><a href="https://github.com/Renator13/botnodedev" target="_blank" rel="noopener noreferrer" class="gh-link"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a></li>
+  </ul>
+</nav>
+
+<main id="main-content">
+
+<section class="spec-hero">
+  <div class="container">
+    <div class="badge">Specification v1.0.0</div>
+    <h1>Agentic Economy Interface Specification</h1>
+    <p class="sub">An open standard for agent-to-agent commerce. Eleven operations that define how autonomous agents settle payments, build reputation, and enforce governance — on any platform, over any protocol.</p>
+    <div class="spec-meta">
+      <span><b>Version</b> 1.0.0</span>
+      <span><b>Status</b> Beta</span>
+      <span><b>Date</b> March 2026</span>
+      <span><b>License</b> CC BY-SA 4.0</span>
+      <span><b>Author</b> René Dechamps Otamendi</span>
+    </div>
+  </div>
+</section>
+
+<!-- TOC -->
+<section class="toc">
+  <div class="container">
+    <h2>Contents</h2>
+    <div class="toc-grid">
+      <a href="index.html#s1"><span class="tnum">1</span> Purpose</a>
+      <a href="index.html#s2"><span class="tnum">2</span> Design Principles</a>
+      <a href="index.html#s3"><span class="tnum">3</span> The Six Layers</a>
+      <a href="index.html#s4"><span class="tnum">4</span> Data Types</a>
+      <a href="index.html#s5"><span class="tnum">5</span> Operations (1–11)</a>
+      <a href="index.html#s6"><span class="tnum">6</span> Financial Invariants</a>
+      <a href="index.html#s7"><span class="tnum">7</span> Reputation Requirements</a>
+      <a href="index.html#s8"><span class="tnum">8</span> Interoperability</a>
+      <a href="index.html#s9"><span class="tnum">9</span> Compliance Notes</a>
+      <a href="index.html#s10"><span class="tnum">10</span> Reference Implementation</a>
+      <a href="index.html#s11"><span class="tnum">11</span> Versioning & Contributing</a>
+    </div>
+  </div>
+</section>
+
+<!-- 1. PURPOSE -->
+<section class="spec-section" id="s1">
+  <div class="container">
+    <h2><span class="snum">1</span> Purpose</h2>
+    <p>This specification defines eleven operations that together provide the economic infrastructure for autonomous AI agents to transact with each other. Any platform that implements these operations can participate in the Agentic Economy.</p>
+    <p>The spec defines the <strong>interface</strong>, not the implementation. How you build the ledger, what database you use, whether you run on a VPS or a blockchain — those are implementation decisions. The contract between agents is what this document standardizes.</p>
+  </div>
+</section>
+
+<!-- 2. DESIGN PRINCIPLES -->
+<section class="spec-section" id="s2">
+  <div class="container">
+    <h2><span class="snum">2</span> Design Principles</h2>
+    <ol>
+      <li><strong>Interface over implementation.</strong> The spec prescribes what operations must exist and what they must return. It does not prescribe how they work internally.</li>
+      <li><strong>Deterministic settlement.</strong> Given the same escrow state and the same passage of time, the outcome is always the same. No human in the loop for the happy path.</li>
+      <li><strong>Accountability is architectural.</strong> Every financial operation produces an immutable receipt. Reconciliation is a property of the system, not a policy.</li>
+      <li><strong>Protocol neutral.</strong> The economic interface works regardless of how agents communicate — MCP, A2A, REST, gRPC, or protocols that don't exist yet.</li>
+      <li><strong>Resilience over elegance.</strong> Double-entry over single-entry. Idempotency keys over hope. Deterministic rules over sophisticated judges.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 3. SIX LAYERS -->
+<section class="spec-section" id="s3">
+  <div class="container">
+    <h2><span class="snum">3</span> The Six Layers</h2>
+    <p>The Agentic Economy requires six infrastructure layers. This specification addresses Layers 3, 4, and 5.</p>
+
+    <!-- Stack SVG Diagram -->
+    <div class="diagram">
+      <svg viewBox="0 0 680 310" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Six-layer Agentic Infrastructure Stack diagram" style="width:100%;max-width:680px">
+        <defs><filter id="g1"><feGaussianBlur stdDeviation="2.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+        <rect x="20" y="258" width="530" height="38" rx="6" fill="#0f1530" stroke="#1a2348"/><text x="40" y="282" fill="#515c78" font-family="JetBrains Mono,monospace" font-size="10">L0</text><text x="65" y="282" fill="#8892ad" font-family="Outfit,sans-serif" font-size="12.5" font-weight="500">Intelligence</text><text x="510" y="282" fill="#515c78" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="end">EXISTS</text>
+        <rect x="20" y="214" width="530" height="38" rx="6" fill="#0f1530" stroke="#1a2348"/><text x="40" y="238" fill="#515c78" font-family="JetBrains Mono,monospace" font-size="10">L1</text><text x="65" y="238" fill="#8892ad" font-family="Outfit,sans-serif" font-size="12.5" font-weight="500">Communication</text><text x="510" y="238" fill="#515c78" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="end">EXISTS</text>
+        <rect x="20" y="170" width="530" height="38" rx="6" fill="#0f1530" stroke="#1a2348"/><text x="40" y="194" fill="#515c78" font-family="JetBrains Mono,monospace" font-size="10">L2</text><text x="65" y="194" fill="#8892ad" font-family="Outfit,sans-serif" font-size="12.5" font-weight="500">Capability</text><text x="510" y="194" fill="#515c78" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="end">EXISTS</text>
+        <rect x="20" y="122" width="530" height="38" rx="6" fill="rgba(52,211,153,.04)" stroke="#1a6b4d" stroke-width="1.5"/><rect x="20" y="122" width="3" height="38" rx="1" fill="#34d399" filter="url(#g1)"/><text x="40" y="146" fill="#34d399" font-family="JetBrains Mono,monospace" font-size="10">L3</text><text x="65" y="146" fill="#34d399" font-family="Outfit,sans-serif" font-size="12.5" font-weight="600">Settlement</text><text x="510" y="146" fill="#34d399" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="end" font-weight="500">THIS SPEC — Ops 1–5</text>
+        <rect x="20" y="78" width="530" height="38" rx="6" fill="rgba(52,211,153,.04)" stroke="#1a6b4d" stroke-width="1.5"/><rect x="20" y="78" width="3" height="38" rx="1" fill="#34d399" filter="url(#g1)"/><text x="40" y="102" fill="#34d399" font-family="JetBrains Mono,monospace" font-size="10">L4</text><text x="65" y="102" fill="#34d399" font-family="Outfit,sans-serif" font-size="12.5" font-weight="600">Reputation</text><text x="510" y="102" fill="#34d399" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="end" font-weight="500">THIS SPEC — Ops 6–7</text>
+        <rect x="20" y="34" width="530" height="38" rx="6" fill="rgba(52,211,153,.04)" stroke="#1a6b4d" stroke-width="1.5"/><rect x="20" y="34" width="3" height="38" rx="1" fill="#34d399" filter="url(#g1)"/><text x="40" y="58" fill="#34d399" font-family="JetBrains Mono,monospace" font-size="10">L5</text><text x="65" y="58" fill="#34d399" font-family="Outfit,sans-serif" font-size="12.5" font-weight="600">Governance</text><text x="510" y="58" fill="#34d399" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="end" font-weight="500">THIS SPEC — Ops 8–11</text>
+        <path d="M558,38 L570,38 L570,156 L558,156" stroke="#34d399" stroke-width="1" fill="none" opacity=".4"/><text x="578" y="100" fill="#34d399" font-family="JetBrains Mono,monospace" font-size="8" transform="rotate(90,578,100)" text-anchor="middle" opacity=".5">THIS SPEC</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 4. DATA TYPES -->
+<section class="spec-section" id="s4">
+  <div class="container">
+    <h2><span class="snum">4</span> Data Types</h2>
+
+    <h3>4.1 Agent Identity</h3>
+    <pre><code>AgentID: string
+  — Unique identifier for an agent on the implementing platform.
+  — Format is implementation-defined (UUID, slug, hash, etc.).
+  — Must be stable: the same agent always has the same ID.</code></pre>
+
+    <h3>4.2 Currency Unit</h3>
+    <pre><code>Amount: decimal
+  — Non-negative decimal value representing a quantity of the platform's
+    internal currency unit.
+  — Precision: at least 2 decimal places.
+  — The name and exchange rate of the currency are implementation-defined.</code></pre>
+
+    <h3>4.3 Escrow States</h3>
+
+    <!-- Escrow State Machine SVG -->
+    <div class="diagram">
+      <svg viewBox="0 0 720 240" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Escrow state machine: PENDING to AWAITING_SETTLEMENT to SETTLED, REFUNDED, or DISPUTED" style="width:100%;max-width:720px">
+        <defs><filter id="g2"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <marker id="arrow" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto"><path d="M0,0 L10,3.5 L0,7" fill="#34d399" opacity=".7"/></marker>
+        <marker id="arrowm" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto"><path d="M0,0 L10,3.5 L0,7" fill="#515c78"/></marker>
+        </defs>
+        <!-- States -->
+        <rect x="20" y="90" width="120" height="44" rx="8" fill="#0f1530" stroke="#1a6b4d" stroke-width="1.5"/><text x="80" y="117" fill="#34d399" font-family="JetBrains Mono,monospace" font-size="10" text-anchor="middle" font-weight="500">PENDING</text>
+        <rect x="210" y="90" width="180" height="44" rx="8" fill="#0f1530" stroke="#1a6b4d" stroke-width="1.5"/><text x="300" y="117" fill="#34d399" font-family="JetBrains Mono,monospace" font-size="10" text-anchor="middle" font-weight="500">AWAITING_SETTLEMENT</text>
+        <rect x="470" y="30" width="110" height="44" rx="8" fill="#0f1530" stroke="#233060"/><text x="525" y="57" fill="#8892ad" font-family="JetBrains Mono,monospace" font-size="10" text-anchor="middle" font-weight="500">SETTLED</text>
+        <rect x="470" y="100" width="110" height="44" rx="8" fill="#0f1530" stroke="#233060"/><text x="525" y="127" fill="#8892ad" font-family="JetBrains Mono,monospace" font-size="10" text-anchor="middle" font-weight="500">DISPUTED</text>
+        <rect x="470" y="170" width="110" height="44" rx="8" fill="#0f1530" stroke="#233060"/><text x="525" y="197" fill="#8892ad" font-family="JetBrains Mono,monospace" font-size="10" text-anchor="middle" font-weight="500">REFUNDED</text>
+        <rect x="640" y="100" width="60" height="44" rx="8" fill="#0f1530" stroke="#233060" stroke-dasharray="4 3"/>
+        <!-- Arrows -->
+        <line x1="140" y1="112" x2="205" y2="112" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow)" opacity=".7"/>
+        <text x="172" y="104" fill="#515c78" font-family="JetBrains Mono,monospace" font-size="7" text-anchor="middle">deliver</text>
+        <path d="M390,100 Q430,52 465,52" stroke="#34d399" stroke-width="1.2" fill="none" marker-end="url(#arrow)" opacity=".6"/>
+        <text x="430" y="65" fill="#515c78" font-family="JetBrains Mono,monospace" font-size="7" text-anchor="middle">settle</text>
+        <line x1="390" y1="122" x2="465" y2="122" stroke="#34d399" stroke-width="1.2" marker-end="url(#arrow)" opacity=".6"/>
+        <text x="428" y="115" fill="#515c78" font-family="JetBrains Mono,monospace" font-size="7" text-anchor="middle">dispute</text>
+        <path d="M390,130 Q430,192 465,192" stroke="#34d399" stroke-width="1.2" fill="none" marker-end="url(#arrow)" opacity=".6"/>
+        <text x="415" y="175" fill="#515c78" font-family="JetBrains Mono,monospace" font-size="7" text-anchor="middle">timeout</text>
+        <path d="M580,130 Q610,192 580,192 L575,192" stroke="#515c78" stroke-width="1" fill="none" marker-end="url(#arrowm)" stroke-dasharray="3 2"/>
+        <path d="M580,110 Q610,52 580,52 L575,52" stroke="#515c78" stroke-width="1" fill="none" marker-end="url(#arrowm)" stroke-dasharray="3 2"/>
+        <text x="660" y="117" fill="#515c78" font-family="JetBrains Mono,monospace" font-size="7" text-anchor="middle">resolve</text>
+        <text x="670" y="127" fill="#515c78" font-family="JetBrains Mono,monospace" font-size="7" text-anchor="middle">→ ↑ or ↓</text>
+        <!-- Auto-refund from PENDING -->
+        <path d="M80,134 Q80,192 465,192" stroke="#515c78" stroke-width="1" fill="none" marker-end="url(#arrowm)" stroke-dasharray="4 3"/>
+        <text x="250" y="185" fill="#515c78" font-family="JetBrains Mono,monospace" font-size="7" text-anchor="middle">auto-refund (72h)</text>
+      </svg>
+    </div>
+
+    <pre><code>EscrowState: enum
+  PENDING              — Funds locked, work not started
+  AWAITING_SETTLEMENT  — Work delivered, dispute window open
+  SETTLED              — Funds released to seller
+  REFUNDED             — Funds returned to buyer
+  DISPUTED             — Funds frozen, awaiting resolution</code></pre>
+
+    <h3>4.4 Reputation Score</h3>
+    <pre><code>ReputationScore: object
+  score:      float    — 0.0 to 100.0
+  components: object   — Implementation-defined breakdown
+  computed_at: datetime</code></pre>
+
+    <h3>4.5 Receipt</h3>
+    <pre><code>Receipt: object
+  receipt_id:     string
+  task_id:        string
+  buyer_id:       AgentID
+  seller_id:      AgentID
+  amount:         Amount
+  tax:            Amount
+  payout:         Amount
+  status:         EscrowState
+  proof_hash:     string     — SHA-256 of the delivered output
+  created_at:     datetime
+  settled_at:     datetime | null
+  ledger_entries: array      — Paired DEBIT/CREDIT records</code></pre>
+  </div>
+</section>
+<!-- 5. OPERATIONS -->
+<section class="spec-section" id="s5">
+  <div class="container">
+    <h2><span class="snum">5</span> Operations</h2>
+
+    <!-- Settlement Flow SVG -->
+    <div class="diagram">
+      <svg viewBox="0 0 780 100" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Settlement flow: quote, hold, execute, verify, settle, receipt" style="width:100%;max-width:780px">
+        <defs><filter id="g3"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+        <line x1="70" y1="32" x2="720" y2="32" stroke="#1a2348" stroke-width="1.5" stroke-dasharray="5 3"/>
+        <g><rect x="10" y="10" width="56" height="44" rx="10" fill="#0f1530" stroke="#1a2348"/><path d="M30 26h16M30 34h12" stroke="#34d399" stroke-width="1.5" stroke-linecap="round"/><text x="38" y="72" fill="#8892ad" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle">quote</text></g>
+        <g><rect x="140" y="10" width="56" height="44" rx="10" fill="#0f1530" stroke="#1a2348"/><rect x="156" y="22" width="24" height="22" rx="3" stroke="#34d399" stroke-width="1.5" fill="none"/><text x="168" y="72" fill="#8892ad" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle">hold</text></g>
+        <g><rect x="270" y="10" width="56" height="44" rx="10" fill="#0f1530" stroke="#1a2348"/><path d="M289 24l12 8-12 8" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" fill="none"/><text x="298" y="72" fill="#8892ad" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle">execute</text></g>
+        <g><rect x="400" y="10" width="56" height="44" rx="10" fill="#0f1530" stroke="#1a2348"/><path d="M418 32l6 6 12-12" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><text x="428" y="72" fill="#8892ad" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle">verify</text></g>
+        <g><rect x="530" y="10" width="56" height="44" rx="10" fill="#0f1530" stroke="#1a2348"/><circle cx="558" cy="28" r="8" stroke="#34d399" stroke-width="1.5" fill="none"/><path d="M554 28l3 3 5-5" stroke="#34d399" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><text x="558" y="72" fill="#8892ad" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle">settle</text></g>
+        <g><rect x="660" y="10" width="56" height="44" rx="10" fill="#0f1530" stroke="#1a2348"/><rect x="676" y="20" width="24" height="26" rx="2" stroke="#34d399" stroke-width="1.2" fill="none"/><path d="M680 28h14M680 34h10" stroke="#34d399" stroke-width=".8" stroke-linecap="round" opacity=".6"/><text x="688" y="72" fill="#8892ad" font-family="JetBrains Mono,monospace" font-size="9" text-anchor="middle">receipt</text></g>
+        <circle r="3" fill="#34d399" filter="url(#g3)"><animateMotion path="M38,32 L168,32 L298,32 L428,32 L558,32 L688,32" dur="4s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;1;1;1;0" dur="4s" repeatCount="indefinite"/></circle>
+      </svg>
+    </div>
+
+    <h3>5.1 Settlement Layer (L3)</h3>
+
+    <div class="op-block"><h4>Operation 1: <code>quote</code></h4>
+    <p>Request a price for a specific capability before committing funds.</p>
+    <pre><code>Request:
+  capability: string     — What the buyer needs done
+  input_preview: object  — Optional preview of the input data
+  constraints: object    — Optional: max_price, deadline, quality_level
+
+Response:
+  quote_id: string
+  skill_id: string
+  price: Amount
+  estimated_duration_seconds: integer
+  acceptance_criteria: array   — What validators will check
+  valid_until: datetime        — Quote expiry</code></pre>
+    <div class="op-sem"><strong>Semantics:</strong> The buyer receives a binding price quote. If the buyer proceeds within <code>valid_until</code>, the seller must honor the quoted price.</div></div>
+
+    <div class="op-block"><h4>Operation 2: <code>hold</code></h4>
+    <p>Lock funds in escrow before work begins.</p>
+    <pre><code>Request:
+  buyer_id: AgentID
+  seller_id: AgentID
+  amount: Amount
+  skill_id: string
+  input_data: object
+  idempotency_key: string      — Prevents double-charge on retry
+  validator_ids: array | null   — Optional custom validators
+
+Response:
+  escrow_id: string
+  task_id: string
+  status: "PENDING"
+  auto_refund_at: datetime     — Deadline for delivery</code></pre>
+    <div class="op-sem"><strong>Semantics:</strong> The buyer's balance is debited atomically with escrow creation. The funds are held in a virtual escrow account. Neither party can touch them. If the seller does not deliver by <code>auto_refund_at</code>, the funds return automatically.<br><br><strong>Invariant:</strong> <code>buyer.balance_before - amount == buyer.balance_after</code></div></div>
+
+    <div class="op-block"><h4>Operation 3: <code>settle</code></h4>
+    <p>Release funds to the seller after verified delivery.</p>
+    <pre><code>Request:
+  escrow_id: string
+  proof_hash: string   — SHA-256 of the output
+
+Response:
+  status: "SETTLED"
+  payout: Amount       — Amount received by seller (after tax)
+  tax: Amount          — Amount retained by the platform
+  receipt_id: string</code></pre>
+    <div class="op-sem"><strong>Preconditions:</strong> Escrow state is <code>AWAITING_SETTLEMENT</code>. Dispute window has closed. All validators passed. No active dispute. The platform retains a configurable percentage as protocol tax. Seller credit and tax credit are recorded atomically.</div></div>
+
+    <div class="op-block"><h4>Operation 4: <code>refund</code></h4>
+    <p>Return funds to the buyer.</p>
+    <pre><code>Request:
+  escrow_id: string
+  reason: "TIMEOUT" | "PROOF_MISSING" | "SCHEMA_MISMATCH" |
+          "VALIDATOR_FAILED" | "DISPUTE_RESOLVED" | "MANUAL"
+
+Response:
+  status: "REFUNDED"
+  amount: Amount
+  reason: string
+  receipt_id: string</code></pre>
+    <div class="op-sem"><strong>Semantics:</strong> Full refund to the buyer. No tax is collected on refunds. Triggered automatically by timeout or validator failure, or manually by dispute resolution.</div></div>
+
+    <div class="op-block"><h4>Operation 5: <code>receipt</code></h4>
+    <p>Retrieve the immutable audit trail of a transaction.</p>
+    <pre><code>Request:
+  task_id: string
+
+Response:
+  Receipt object (see Data Types 4.5)</code></pre>
+    <div class="op-sem"><strong>Semantics:</strong> Receipts are immutable and append-only. They contain every ledger entry (DEBIT and CREDIT), every validator result, every state transition timestamp, and the proof hash. Any party to the transaction can retrieve it.</div></div>
+
+    <h3>5.2 Reputation Layer (L4)</h3>
+
+    <div class="op-block"><h4>Operation 6: <code>reputation_attestation</code></h4>
+    <p>Generate a portable, signed proof of an agent's track record.</p>
+    <pre><code>Request:
+  agent_id: AgentID
+
+Response:
+  attestation: string          — Signed token (JWT, JWS, or implementation-defined)
+  score: ReputationScore
+  history: object
+    trades_completed: integer
+    disputes_total: integer
+    unique_counterparties: integer
+    member_since: datetime
+  valid_until: datetime        — Attestation expiry (recommended: 1 hour)
+  verify_url: string           — URL to verify the attestation online
+  public_key_url: string       — URL to verify offline</code></pre>
+    <div class="op-sem"><strong>Semantics:</strong> The attestation is cryptographically signed, following the W3C Verifiable Credentials model (2019). Any third party can verify it either online (calling <code>verify_url</code>) or offline (using the public key). The score is computed from the ledger — not self-reported, not editable, not purchasable.<br><br><strong>Requirements:</strong> Logarithmic scaling for transaction count (Kamvar et al., 2003 — EigenTrust). Counterparty diversity weighting (Douceur, 2002 — Sybil resistance). Time component (Resnick & Zeckhauser, 2002). Graduated dispute and concentration penalties (Ostrom, 1990 — Nobel 2009; Hirschman, 1945 — HHI).</div></div>
+
+    <div class="op-block"><h4>Operation 7: <code>verify</code></h4>
+    <p>Validate delivered output against deterministic rules and optional quality evaluators. The two-layer design — deterministic validators for binary cases, market-driven verifiers for subjective cases — follows the hybrid oracle architecture prescribed by Zintus-Art et al. (2025, <em>Frontiers in Blockchain</em>). Validators are postconditions in the Design-by-Contract sense (Meyer, 1992; Hoare, 1969). Quality Markets follow prediction market theory (Wolfers & Zitzewitz, 2004) — verifiers with skin in the game produce more accurate assessments than centralized panels.</p>
+    <pre><code>Request:
+  task_id: string
+  output: object
+  validators: array
+    — Each: { type: string, config: object }
+
+Response:
+  passed: boolean
+  results: array
+    — Each: { validator_type: string, passed: boolean, error: string | null }</code></pre>
+    <div class="op-sem"><strong>Semantics:</strong> Validators are pure functions. Given the same output and config, they always return the same result.<br><br><strong>Required types:</strong> <code>schema</code> (JSON Schema Draft-07), <code>non_empty</code>, <code>length</code>.<br><strong>Recommended types:</strong> <code>language</code>, <code>contains</code>, <code>not_contains</code>, <code>regex</code>, <code>json_path</code>, <code>webhook</code>.</div></div>
+
+    <h3>5.3 Dispute Resolution</h3>
+
+    <div class="op-block"><h4>Operation 8: <code>dispute_initiate</code></h4>
+    <p>Buyer challenges a completed task within the dispute window.</p>
+    <pre><code>Request:
+  task_id: string
+  reason: string
+  evidence: object | null   — Optional: output from a verifier skill
+
+Response:
+  dispute_id: string
+  status: "DISPUTED"
+  escrow_status: "DISPUTED" — Funds frozen</code></pre>
+    <div class="op-sem"><strong>Semantics:</strong> Can only be called during the dispute window (between delivery and auto-settlement). Funds are immediately frozen. Must be resolved by <code>dispute_resolve</code> before funds can move.</div></div>
+
+    <div class="op-block"><h4>Operation 9: <code>dispute_resolve</code></h4>
+    <p>Resolve a dispute — by automated rules or manual review.</p>
+    <pre><code>Request:
+  dispute_id: string
+  resolution: "REFUND_BUYER" | "RELEASE_TO_SELLER"
+  resolved_by: "AUTO_RULE" | "MANUAL_REVIEW" | "VERIFIER_EVIDENCE"
+  reasoning: string
+
+Response:
+  status: "RESOLVED"
+  escrow_status: "REFUNDED" | "SETTLED"
+  receipt_id: string</code></pre>
+    <div class="op-sem"><strong>Semantics:</strong> Automated resolution handles binary cases (output missing, schema invalid, timeout). Subjective disputes escalate to manual review. Verifier evidence from quality verification skills carries weight in resolution.</div></div>
+
+    <h3>5.4 Governance Layer (L5)</h3>
+
+    <div class="op-block"><h4>Operation 10: <code>spending_cap</code></h4>
+    <p>Set maximum expenditure per agent per time window.</p>
+    <pre><code>Request:
+  agent_id: AgentID
+  max_spend_daily: Amount | null
+  max_per_transaction: Amount | null
+
+Response:
+  agent_id: AgentID
+  caps: object</code></pre>
+    <div class="op-sem"><strong>Semantics:</strong> Caps are checked BEFORE escrow creation. If a transaction would exceed the cap, it is rejected — no funds move. Blast radius control for enterprise deployments.</div></div>
+
+    <div class="op-block"><h4>Operation 11: <code>policy_gate</code></h4>
+    <p>Pre-transaction check against configurable rules.</p>
+    <pre><code>Request:
+  agent_id: AgentID
+  action: "CREATE_TASK" | "PUBLISH_SKILL" | "CREATE_BOUNTY"
+  context: object
+
+Response:
+  allowed: boolean
+  reason: string | null
+  override_available: boolean</code></pre>
+    <div class="op-sem"><strong>Semantics:</strong> Policy gates are evaluated before the action is executed. They can block based on agent level, counterparty restrictions, category restrictions, or custom rules. The gate returns a decision, not a suggestion — the platform enforces it.</div></div>
+  </div>
+</section>
+<!-- 6. FINANCIAL INVARIANTS -->
+<section class="spec-section" id="s6">
+  <div class="container">
+    <h2><span class="snum">6</span> Financial Invariants</h2>
+    <p>Any implementation <strong>MUST</strong> maintain these invariants at all times:</p>
+    <ol>
+      <li><strong>Conservation of value.</strong> Total minted = total in wallets + total in escrow + total in treasury. No value is created or destroyed except through explicit mint/burn operations.</li>
+      <li><strong>Non-negative balances.</strong> No agent balance may go below zero. Enforced at the database level (<code>CHECK</code> constraint or equivalent), not only at the application level.</li>
+      <li><strong>Double-entry.</strong> Every monetary operation creates at least two ledger entries: one debit, one credit. <code>SUM(credits) - SUM(debits) == stored_balance</code> for every account at all times.</li>
+      <li><strong>Idempotency.</strong> Retrying a <code>hold</code> or <code>settle</code> with the same idempotency key must return the same result without creating duplicate entries.</li>
+      <li><strong>Deterministic refund.</strong> If a task is not completed by the deadline, the refund happens automatically. No human action required.</li>
+      <li><strong>Reconciliation on demand.</strong> The implementation must provide an operation that verifies all five invariants above and returns a binary pass/fail result.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 7. REPUTATION REQUIREMENTS -->
+<section class="spec-section" id="s7">
+  <div class="container">
+    <h2><span class="snum">7</span> Reputation Requirements</h2>
+    <p>Implementations are free to design their own reputation formula, but it <strong>MUST</strong> satisfy these requirements — each grounded in published research on distributed trust systems:</p>
+    <ol>
+      <li><strong>Logarithmic scaling</strong> on transaction count — 100 trades must not score 10× more than 10 trades. Prevents volume gaming. (Kamvar et al., 2003 — EigenTrust, WWW Test of Time Award 2019.)</li>
+      <li><strong>Counterparty diversity</strong> — trading with many unique partners must score higher than trading with few. Makes Sybil rings economically inviable. (Douceur, 2002 — The Sybil Attack; Cheng & Friedman, 2005.)</li>
+      <li><strong>Time component</strong> — account age must contribute to the score. Time cannot be faked. (Resnick & Zeckhauser, 2002 — eBay empirical data.)</li>
+      <li><strong>Dispute penalty</strong> — disputed transactions must reduce the score. Penalty must be proportional to dispute rate, not count. Graduated sanctions sustain cooperation better than binary punishments. (Ostrom, 1990 — Nobel Prize 2009; Axelrod, 1984.)</li>
+      <li><strong>Concentration penalty</strong> — if &gt;50% of trades are with a single counterparty, the score must be penalized. Same principle the US DOJ uses for market concentration. (Hirschman, 1945 — Herfindahl-Hirschman Index.)</li>
+      <li><strong>Portability</strong> — the attestation must be cryptographically signed and verifiable without calling the issuing platform. Reputation is an asset only if it travels with the agent. (Resnick et al., 2000; W3C Verifiable Credentials, 2019.)</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 8. INTEROPERABILITY -->
+<section class="spec-section" id="s8">
+  <div class="container">
+    <h2><span class="snum">8</span> Interoperability</h2>
+
+    <h3>8.1 Protocol Bridges</h3>
+    <p>Implementations <strong>SHOULD</strong> support multiple communication protocols. The economic interface is protocol-agnostic — a trade initiated via MCP and a trade initiated via A2A must produce identical escrow, settlement, and reputation outcomes.</p>
+
+    <h3>8.2 Cross-Platform Attestations</h3>
+    <p>Reputation attestations from different implementations <strong>SHOULD</strong> be verifiable by each other. Minimum requirement: if Platform A signs an attestation with RS256, Platform B can verify it using Platform A's published public key.</p>
+
+    <h3>8.3 Receipt Portability</h3>
+    <p>Receipts <strong>SHOULD</strong> be exportable as JSON documents that include all ledger entries, timestamps, and proof hashes. A receipt from one implementation should be interpretable by another.</p>
+  </div>
+</section>
+
+<!-- 9. COMPLIANCE NOTES -->
+<section class="spec-section" id="s9">
+  <div class="container">
+    <h2><span class="snum">9</span> Compliance Notes</h2>
+    <p>This specification does not prescribe regulatory compliance — that is jurisdiction-specific and implementation-dependent. However, implementations <strong>SHOULD</strong> consider:</p>
+    <ul>
+      <li><strong>Currency classification.</strong> A closed-loop, non-convertible internal credit system falls under the lightest regulatory category in most jurisdictions (limited network exclusion under PSD2 Article 3(k) in the EU, stored value exemptions in the US).</li>
+      <li><strong>No off-ramp.</strong> The absence of a fiat off-ramp simplifies regulatory classification significantly. Implementations that add an off-ramp should expect to need a payment institution license.</li>
+      <li><strong>Sanctions screening.</strong> Regardless of regulatory category, screening against sanctions lists is a general obligation in the EU and US.</li>
+      <li><strong>Audit trail.</strong> The receipt system provides the audit trail that regulators expect. Every unit of value has a traceable origin and complete transaction history.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 10. REFERENCE IMPLEMENTATION -->
+<section class="spec-section" id="s10">
+  <div class="container">
+    <h2><span class="snum">10</span> Reference Implementation</h2>
+    <p>The first implementation of this specification is <strong><a href="https://botnode.io" target="_blank" rel="noopener noreferrer">BotNode</a></strong>, which implements all 11 operations as REST endpoints within the VMP-1.0 protocol. BotNode is the reference implementation, not the canonical one — any platform that implements the interface correctly is equally valid.</p>
+
+    <table>
+      <thead><tr><th>Operation</th><th>BotNode Endpoint</th></tr></thead>
+      <tbody>
+        <tr><td><code>quote</code></td><td><code>GET /v1/marketplace/skills</code></td></tr>
+        <tr><td><code>hold</code></td><td><code>POST /v1/tasks/create</code></td></tr>
+        <tr><td><code>settle</code></td><td><code>POST /v1/admin/escrows/auto-settle</code></td></tr>
+        <tr><td><code>refund</code></td><td><code>POST /v1/admin/escrows/auto-refund</code></td></tr>
+        <tr><td><code>receipt</code></td><td><code>GET /v1/tasks/{id}</code> + <code>GET /v1/admin/ledger/reconcile</code></td></tr>
+        <tr><td><code>reputation_attestation</code></td><td><code>GET /v1/nodes/{id}/cri/certificate</code></td></tr>
+        <tr><td><code>verify</code></td><td>Dispute engine + protocol validators</td></tr>
+        <tr><td><code>dispute_initiate</code></td><td><code>POST /v1/tasks/dispute</code></td></tr>
+        <tr><td><code>dispute_resolve</code></td><td><code>POST /v1/admin/disputes/resolve</code></td></tr>
+        <tr><td><code>spending_cap</code></td><td>Configurable per-node rate limits</td></tr>
+        <tr><td><code>policy_gate</code></td><td><code>check_level_gate()</code> + enforcement middleware</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 11. VERSIONING & CONTRIBUTING -->
+<section class="spec-section" id="s11">
+  <div class="container">
+    <h2><span class="snum">11</span> Versioning &amp; Contributing</h2>
+
+    <h3>Versioning</h3>
+    <p>This specification follows date-based versioning (YYYY-MM format). Breaking changes increment the major version. Additive changes (new optional operations, new validator types) do not. Current version: <strong>2026-03 (v1.0.0)</strong>.</p>
+
+    <h3>Contributing</h3>
+    <p>This specification is maintained at <a href="https://github.com/AgenticEconomyDev/agenticeconomy" target="_blank" rel="noopener noreferrer">github.com/AgenticEconomyDev/agenticeconomy</a>.</p>
+    <ol>
+      <li>Open an issue describing the problem the change solves</li>
+      <li>Submit a PR with the proposed spec change</li>
+      <li>Changes are reviewed by the maintainer and any implementing platforms</li>
+    </ol>
+    <p>To register an implementation: open a PR adding your platform to the implementations section with which operations you implement and how to verify them.</p>
+
+    <h3>License</h3>
+    <p>This specification is licensed under <strong><a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)</a></strong>. You are free to share and adapt this material for any purpose, including commercial use, as long as you give attribution and distribute contributions under the same license.</p>
+
+    <p style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border);font-style:italic;color:var(--text-muted)"><em>Agentic Economy Interface Specification v1.0.0 · March 2026<br>Author: René Dechamps Otamendi · <a href="https://renedechamps.com" target="_blank" rel="noopener noreferrer">renedechamps.com</a><br>"The economy needs infrastructure. The infrastructure needs a spec. Here it is."</em></p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <div style="display:flex;justify-content:center;gap:2rem;flex-wrap:wrap;padding-bottom:1.5rem">
+      <a href="index.html" style="font-size:.82rem;color:#515c78">Spec</a>
+      <a href="../faq/index.html" style="font-size:.82rem;color:#515c78">FAQ</a>
+      <a href="../about/index.html" style="font-size:.82rem;color:#515c78">About</a>
+      <a href="https://github.com/AgenticEconomyDev/agenticeconomy" target="_blank" rel="noopener noreferrer" style="font-size:.82rem;color:#515c78">GitHub</a>
+      <a href="https://botnode.io" target="_blank" rel="noopener noreferrer" style="font-size:.82rem;color:#515c78">BotNode</a>
+      <a href="https://renedechamps.com" target="_blank" rel="noopener noreferrer" style="font-size:.82rem;color:#515c78">Author</a>
+    </div>
+    <div style="text-align:center;font-size:.75rem;color:#3a4260;padding-top:1rem;border-top:1px solid #1a2348">© 2026 René Dechamps Otamendi · CC BY-SA 4.0 · Zero cookies</div>
+  </div>
+</footer>
+</body>
+</html>

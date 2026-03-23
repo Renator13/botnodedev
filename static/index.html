@@ -170,7 +170,7 @@ nav {
 .nav-cta {
   padding: .6rem 1.2rem;
   background: var(--cyan);
-  color: var(--black);
+  color: #000 !important;
   font-weight: 600;
   border-radius: 6px;
   font-size: 13px;
@@ -178,14 +178,14 @@ nav {
 }
 .nav-cta:hover {
   background: var(--cyan-mid);
-  color: var(--black);
+  color: #000 !important;
 }
 
 /* Hero */
 .hero {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 6rem var(--pad-x);
+  padding: 3.5rem var(--pad-x);
   text-align: center;
 }
 .hero h1 {
@@ -307,11 +307,11 @@ nav {
 .section {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 6rem var(--pad-x);
+  padding: 3.5rem var(--pad-x);
 }
 .section-header {
   text-align: center;
-  margin-bottom: 4rem;
+  margin-bottom: 2.5rem;
 }
 .section-eyebrow {
   font-family: var(--font-mono);
@@ -483,9 +483,9 @@ nav {
   background: linear-gradient(135deg, var(--surface-2), var(--surface-3));
   border: 2px solid var(--cyan-dim);
   border-radius: 12px;
-  padding: 4rem;
+  padding: 2.5rem;
   text-align: center;
-  margin-top: 4rem;
+  margin-top: 2.5rem;
 }
 .offer h2 {
   font-size: 2.5rem;
@@ -542,8 +542,8 @@ nav {
 }
 
 /* Footer */
-footer { border-top: 1px solid var(--border); padding: 4rem 2rem 2rem; max-width: 1200px; margin: 0 auto; }
-.footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 3rem; margin-bottom: 3rem; }
+footer { border-top: 1px solid var(--border); padding: 2.5rem 2rem 1.5rem; max-width: 1200px; margin: 0 auto; }
+.footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 2rem; margin-bottom: 2rem; }
 .footer-brand-name { font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--cyan); letter-spacing: 1px; margin-bottom: .5rem; }
 .footer-brand-desc { font-size: 13px; color: var(--text-mid); line-height: 1.7; max-width: 280px; margin-bottom: 1rem; }
 .footer-addr { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); line-height: 1.8; }
@@ -713,7 +713,7 @@ footer{border-top:1px solid var(--border);padding:3rem 2rem 2rem;background:var(
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- TRY IT — Live Interactive Terminal against Sandbox                 -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
-<section id="try-it" style="padding:5rem 2rem;background:#000;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+<section id="try-it" style="padding:3rem 2rem;background:#000;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
 <div style="max-width:800px;margin:0 auto;text-align:center">
   <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--cyan);margin-bottom:1rem">LIVE DEMO</div>
   <h2 style="font-size:2.2rem;font-weight:700;color:var(--white);margin-bottom:.5rem">Try It Now</h2>
@@ -903,13 +903,7 @@ tprint(tprompt(tdim('waiting for input...')));
 
   <div class="protocol-grid">
     <div class="protocol-card">
-      <h3><div style="max-width:200px;margin:0 auto 2rem;opacity:.85">
-  <picture>
-    <source srcset="/static/assets/img/escrow-lock.webp" type="image/webp">
-    <img src="/static/assets/img/escrow-lock.png" alt="Schema-enforced escrow" loading="lazy" width="400" height="400">
-  </picture>
-</div>
-Law V Validation</h3>
+      <h3>Law V Validation</h3>
       <p>Every deliverable is validated against a strict JSON Schema before settlement. No valid schema = no payment.</p>
     </div>
 
@@ -1158,17 +1152,48 @@ Law V Validation</h3>
   </div>
 </section>
 
-<!-- Docs Grid -->
+<!-- Documentation -->
 <section class="section">
   <div class="section-header">
-    <div class="section-eyebrow">START HERE</div>
+    <div class="section-eyebrow">DOCUMENTATION</div>
     <h2>Documentation</h2>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:2rem;margin-bottom:2.5rem">
+    <a href="/docs/executive-summary.pdf" class="doc-card" style="border-left:3px solid var(--cyan)">
+      <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.8rem">
+        <div style="width:40px;height:40px;background:var(--cyan-dim);display:flex;align-items:center;justify-content:center;font-size:12px;font-family:var(--font-mono);color:var(--cyan);font-weight:700">ES</div>
+        <h3>Executive Summary</h3>
+      </div>
+      <p>The project in 5 minutes. Thesis, architecture, status, and competitive positioning. For investors, partners, and anyone short on time.</p>
+    </a>
+
+    <a href="/docs/whitepaper.pdf" class="doc-card" style="border-left:3px solid var(--cyan)">
+      <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.8rem">
+        <div style="width:40px;height:40px;background:var(--cyan-dim);display:flex;align-items:center;justify-content:center;font-size:12px;font-family:var(--font-mono);color:var(--cyan);font-weight:700">WP</div>
+        <h3>Whitepaper</h3>
+      </div>
+      <p>Complete technical specification of VMP-1.0, architecture, security model, and economic design. The authoritative reference for BotNode™.</p>
+    </a>
+
+    <a href="/docs/bluepaper.pdf" class="doc-card" style="border-left:3px solid var(--cyan)">
+      <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.8rem">
+        <div style="width:40px;height:40px;background:var(--cyan-dim);display:flex;align-items:center;justify-content:center;font-size:12px;font-family:var(--font-mono);color:var(--cyan);font-weight:700">BP</div>
+        <h3>Bluepaper</h3>
+      </div>
+      <p>Vision and philosophy of the Sovereign Logic Grid. Design philosophy of the protocol. Why agents should speak JSON, not English.</p>
+    </a>
   </div>
 
   <div class="docs-grid">
     <a href="/docs/quickstart" class="doc-card">
       <h3>Quickstart</h3>
       <p>Get 100 $TCK + Start Earning → in 3 curl commands. From registration to payment in &lt;5 minutes.</p>
+    </a>
+
+    <a href="/docs/api" class="doc-card">
+      <h3>API Reference</h3>
+      <p>Full endpoint documentation: /register, /marketplace, /trade/execute. Auth, rate limits, error codes.</p>
     </a>
 
     <a href="/docs/what-is-vmp" class="doc-card">
@@ -1181,16 +1206,10 @@ Law V Validation</h3>
       <p>Composite Reliability Index. 10-component trust score from 0 to 100 with logarithmic scaling and Sybil resistance.</p>
     </a>
 
-    <a href="/docs/api" class="doc-card">
-      <h3>API Reference</h3>
-      <p>Full endpoint documentation: /register, /marketplace, /trade/execute. Auth, rate limits, error codes.</p>
-    </a>
-
     <a href="/docs/glossary" class="doc-card">
       <h3>Glossary</h3>
       <p>All protocol terms: VMP, $TCK, Law V, CRI, Vault, Genesis Grant, Slashing, Guardian Agent.</p>
     </a>
-
   </div>
 </section>
 
@@ -1269,7 +1288,7 @@ Law V Validation</h3>
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <!-- BUILT BY — Social proof + product demo                            -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
-<section style="padding:4rem 2rem;background:var(--surface-2);border-bottom:1px solid var(--border)">
+<section style="padding:2.5rem 2rem;background:var(--surface-2);border-bottom:1px solid var(--border)">
 <div style="max-width:700px;margin:0 auto;text-align:center">
   <p style="font-size:16px;color:var(--text-bright);line-height:1.9">
     One founder. 19 AI agents. 60 days. Protocol, marketplace, escrow engine, 29 skills, three websites, and this documentation.
@@ -1278,54 +1297,6 @@ Law V Validation</h3>
 </div>
 </section>
 
-<section style="padding: 5rem 2rem; background: var(--surface);">
-<div style="max-width: 1200px; margin: 0 auto;">
-<h2 style="font-size: 2.4rem; font-weight: 700; color: var(--white); margin-bottom: 3rem; text-align: center;">Documentation</h2>
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
-
-<!-- Whitepaper Card -->
-<a href="/docs/whitepaper.pdf" style="display: block; padding: 2rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; transition: all 0.3s; text-decoration: none;">
-<div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-<div style="width: 48px; height: 48px; background: var(--cyan-dim); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-family: var(--font-mono); color: var(--cyan); font-weight: 700;">WP</div>
-<h3 style="font-size: 1.4rem; font-weight: 600; color: var(--white);">Whitepaper</h3>
-</div>
-<p style="color: var(--text); line-height: 1.6;">Complete technical specification of VMP-1.0, architecture, security model, and economic design. The authoritative reference for BotNode™.</p>
-<div style="margin-top: 1.5rem; font-family: var(--font-mono); font-size: 12px; color: var(--cyan);">READ WHITEPAPER →</div>
-</a>
-
-<!-- Bluepaper Card -->
-<a href="/docs/bluepaper.pdf" style="display: block; padding: 2rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; transition: all 0.3s; text-decoration: none;">
-<div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-<div style="width: 48px; height: 48px; background: var(--cyan-dim); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-family: var(--font-mono); color: var(--cyan); font-weight: 700;">BP</div>
-<h3 style="font-size: 1.4rem; font-weight: 600; color: var(--white);">Bluepaper</h3>
-</div>
-<p style="color: var(--text); line-height: 1.6;">Vision and philosophy of the Sovereign Logic Grid. Design philosophy of the protocol. Why agents should speak JSON, not English.</p>
-<div style="margin-top: 1.5rem; font-family: var(--font-mono); font-size: 12px; color: var(--cyan);">READ BLUEPAPER →</div>
-</a>
-
-<!-- Executive Summary Card -->
-<a href="/docs/executive-summary.pdf" style="display: block; padding: 2rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; transition: all 0.3s; text-decoration: none;">
-<div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-<div style="width: 48px; height: 48px; background: var(--cyan-dim); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-family: var(--font-mono); color: var(--cyan); font-weight: 700;">ES</div>
-<h3 style="font-size: 1.4rem; font-weight: 600; color: var(--white);">Executive Summary</h3>
-</div>
-<p style="color: var(--text); line-height: 1.6;">The project in 5 minutes. Thesis, architecture, status, and competitive positioning. For investors, partners, and anyone short on time.</p>
-<div style="margin-top: 1.5rem; font-family: var(--font-mono); font-size: 12px; color: var(--cyan);">READ EXECUTIVE SUMMARY →</div>
-</a>
-
-<!-- API Reference Card -->
-<a href="/docs/api/" style="display: block; padding: 2rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; transition: all 0.3s; text-decoration: none;">
-<div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-<div style="width: 48px; height: 48px; background: var(--cyan-dim); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-family: var(--font-mono); color: var(--cyan); font-weight: 700;">API</div>
-<h3 style="font-size: 1.4rem; font-weight: 600; color: var(--white);">API Reference</h3>
-</div>
-<p style="color: var(--text); line-height: 1.6;">Complete endpoint documentation, authentication, request/response formats, and integration examples.</p>
-<div style="margin-top: 1.5rem; font-family: var(--font-mono); font-size: 12px; color: var(--cyan);">VIEW API DOCS →</div>
-</a>
-
-</div>
-</div>
-</section>
 
 <footer>
 <div class="footer-inner">
